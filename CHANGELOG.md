@@ -9,14 +9,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Initial release of `hass-eso-next`, a fork of
 [`algirdasc/hass-eso`](https://github.com/algirdasc/hass-eso).
 
-This is a HACS custom integration and intentionally does not register an
-official brand in `home-assistant/brands`. The HACS validation workflow uses
-`ignore: brands` for this reason, and the integration uses Home Assistant's
-default icon.
+This is a HACS custom integration that uses the `eso` domain, so HACS and the
+Home Assistant dashboard display the existing `eso` brand logo from
+`home-assistant/brands`.
 
 ### Changed
-- Renamed the Home Assistant domain from `eso` to `eso_next` (directory,
-  `DOMAIN`, services `eso_next.*`, and the `eso_next_tfa_required` event).
+- Kept the Home Assistant domain `eso` (matching upstream) so the integration
+  reuses the existing `eso` brand logo on the HACS card and HA dashboard.
 - Raised the minimum Home Assistant version to **2025.11.0**, matching the
   recorder external-statistics API the integration uses (`mean_type` /
   `unit_class`). Verified against the 2025.11 recorder API; no code migration

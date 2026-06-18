@@ -29,12 +29,12 @@ or a third-party meter (e.g. Shelly 3EM).
 
 ### Manual
 
-1. Copy `custom_components/eso_next` into your HA `config/custom_components/`.
+1. Copy `custom_components/eso` into your HA `config/custom_components/`.
 2. Configure (below) and restart Home Assistant.
 
 ## Configuration
 
-Add an `eso_next:` block to `configuration.yaml`.
+Add an `eso:` block to `configuration.yaml`.
 
 ### Integration
 
@@ -83,7 +83,7 @@ see [docs/login-flow.md](docs/login-flow.md).
 ### Example
 
 ```yaml
-eso_next:
+eso:
   username: your_username
   password: your_password
   objects:
@@ -119,7 +119,7 @@ sensor:
     price_type: kWh
     additional_costs: "{{ 0.08470 + 0.007 | float }}"
 
-eso_next:
+eso:
   username: your_username
   password: your_password
   objects:
@@ -137,7 +137,7 @@ costs* and select `My House (cost)`.
 ### Auto mode (with `imap:`)
 
 The import runs on the daily schedule. To run it immediately, call the
-`eso_next.fetch_now` service (**Developer Tools → Actions**). It performs the
+`eso.fetch_now` service (**Developer Tools → Actions**). It performs the
 full flow: credential login, reads the one-time code over IMAP, submits it, and
 imports statistics. Watch **Settings → System → Logs**.
 
@@ -145,9 +145,9 @@ imports statistics. Watch **Settings → System → Logs**.
 
 Omit the `imap:` block to drive login by hand. Services:
 
-- `eso_next.start_login` — triggers ESO to email a code, fires an
-  `eso_next_tfa_required` event, and raises a notification.
-- `eso_next.submit_tfa_code` (`code`) — submits the code and imports data.
+- `eso.start_login` — triggers ESO to email a code, fires an
+  `eso_tfa_required` event, and raises a notification.
+- `eso.submit_tfa_code` (`code`) — submits the code and imports data.
 
 Example: prompt for the code on your phone and submit it.
 
@@ -156,7 +156,7 @@ automation:
   - alias: ESO ask for TFA code
     trigger:
       - platform: event
-        event_type: eso_next_tfa_required
+        event_type: eso_tfa_required
     action:
       - action: notify.mobile_app_your_phone
         data:
@@ -176,7 +176,7 @@ automation:
         event_data:
           action: "ESO_TFA_CODE"
     action:
-      - action: eso_next.submit_tfa_code
+      - action: eso.submit_tfa_code
         data:
           code: "{{ trigger.event.data.reply_text }}"
 ```

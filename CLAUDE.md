@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A Home Assistant custom integration (`eso_next`) that scrapes hourly energy
+A Home Assistant custom integration (`eso`) that scrapes hourly energy
 statistics from the Lithuanian ESO self-service portal (`mano.eso.lt`) and
 writes them into Home Assistant's recorder as external long-term statistics for
 the Energy dashboard. It is a maintained fork of `algirdasc/hass-eso`.
@@ -31,8 +31,8 @@ hassfest requires `manifest.json` keys to stay sorted.
 The integration is split into one HA-runtime glue module and three
 pure-logic modules that are unit-testable without Home Assistant installed.
 
-- `custom_components/eso_next/__init__.py` — **HA runtime glue**. Defines the
-  voluptuous `CONFIG_SCHEMA` (YAML config under the `eso_next:` key), registers
+- `custom_components/eso/__init__.py` — **HA runtime glue**. Defines the
+  voluptuous `CONFIG_SCHEMA` (YAML config under the `eso:` key), registers
   the `fetch_now` / `start_login` / `submit_tfa_code` services, schedules the
   daily import via `async_track_time_change`, and converts ESO datasets into
   `StatisticData` written through `async_add_external_statistics`. This file is
@@ -71,7 +71,7 @@ ESO emails a one-time code on every login. The same `ESOClient` drives both:
   triggers it on demand.
 - **Manual mode** (no `imap:`): split across two services. `start_login` does
   only the credential POST (`client.start_login()`), fires the
-  `eso_next_tfa_required` event and a notification; `submit_tfa_code` calls
+  `eso_tfa_required` event and a notification; `submit_tfa_code` calls
   `client.submit_code(code)` then imports. Without IMAP, `login()` raises
   `TfaCodeNeeded`.
 
@@ -79,7 +79,7 @@ See `docs/login-flow.md` for the full sequence.
 
 ### Statistics model
 
-- Statistic IDs are `eso_next:energy_{consumed|returned|cost}_{object_id}`.
+- Statistic IDs are `eso:energy_{consumed|returned|cost}_{object_id}`.
 - Consumed = ESO key `P+`, returned = `P-` (`ENERGY_TYPE_MAP`).
 - Stats carry a running `sum` seeded from the recorder's previous hour
   (`get_previous_sum`), because HA long-term statistics are cumulative.
@@ -93,7 +93,7 @@ See `docs/login-flow.md` for the full sequence.
 - Target Python 3.11 (`pyproject.toml`); ruff line-length 100, `E501` ignored.
 - Some log messages and inline comments are in Lithuanian — match the
   surrounding language when editing nearby code.
-- Tests import the component modules via a synthetic top-level `eso_next`
+- Tests import the component modules via a synthetic top-level `eso`
   package set up in `tests/conftest.py`, which deliberately avoids executing
   `__init__.py` (its HA imports are unavailable). Keep new pure logic in the
   client/parser modules (not `__init__.py`) so it stays testable.

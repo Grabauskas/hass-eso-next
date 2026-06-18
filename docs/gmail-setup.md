@@ -23,7 +23,7 @@ You will:
 3. Generate a 16-character **app password** for IMAP.
 4. Confirm IMAP is enabled in Gmail.
 5. Forward only ESO's emails from your real inbox to the new account.
-6. Put the host / username / app password into the `eso_next:` → `imap:` config.
+6. Put the host / username / app password into the `eso:` → `imap:` config.
 
 Total time: ~10 minutes.
 
@@ -147,11 +147,11 @@ seconds, and Home Assistant reads it from there.
 
 ## Step 6 — Configure Home Assistant
 
-Add the `imap:` block to your `eso_next:` configuration in `configuration.yaml`,
+Add the `imap:` block to your `eso:` configuration in `configuration.yaml`,
 using the values from Step 4:
 
 ```yaml
-eso_next:
+eso:
   username: your_eso_username      # ESO portal login
   password: your_eso_password      # ESO portal password
   imap:
