@@ -2,7 +2,6 @@ from datetime import datetime, timedelta, timezone
 
 import requests
 
-
 CONSUMPTION_HTML = """
 <form id="eso-form" action="/consumption" method="post">
   <input name="form_id" value="eso_consumption_history_form" />
