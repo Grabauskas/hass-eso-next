@@ -22,6 +22,8 @@ CONF_PORT = "port"
 CONF_FOLDER = "folder"
 CONF_SENDER = "sender"
 CONF_SUBJECT = "subject"
+CONF_IMAP_USERNAME = "imap_username"
+CONF_IMAP_PASSWORD = "imap_password"
 CONF_NOTIFY_AFTER_FAILURES = "notify_after_failures"
 CONF_CODE = "code"
 

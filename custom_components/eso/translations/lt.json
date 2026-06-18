@@ -36,7 +36,8 @@
     },
     "abort": {
       "already_configured": "Ši ESO paskyra jau sukonfigūruota.",
-      "reauth_failed": "Pakartotinis prisijungimas nepavyko. Patikrinkite žurnalus."
+      "reauth_failed": "Pakartotinis prisijungimas nepavyko. Patikrinkite žurnalus.",
+      "reauth_successful": "Pakartotinis prisijungimas pavyko ir duomenys atnaujinti."
     }
   },
   "config_subentries": {

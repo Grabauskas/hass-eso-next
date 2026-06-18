@@ -70,7 +70,7 @@ def _ensure_services(hass: HomeAssistant) -> None:
         return
 
     async def handle_fetch_now(call) -> None:
-        accounts = list(hass.data.get(DOMAIN, {}).values())
+        accounts = hass.data.get(DOMAIN, {}).values()
         ran = False
         for account in accounts:
             if getattr(account, "code_provider", None) is None:

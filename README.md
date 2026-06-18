@@ -159,7 +159,10 @@ required.
 6. **Reauth:** for accounts without IMAP, Home Assistant will prompt you to
    re-enter an ESO code whenever a scheduled login requires a fresh one. A
    notification will direct you back to the integration's re-authentication
-   dialog.
+   dialog. After you enter the emailed code, the entry's authenticated session
+   is used to fetch and refresh data immediately.
+7. **`notify_after_failures`** is configured when the account is first added
+   and cannot be changed from the UI afterward (there is no options flow).
 
 > **YAML still works unchanged.** If you already have an `eso:` block in
 > `configuration.yaml`, it continues to function. UI-configured entries and YAML

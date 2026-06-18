@@ -36,7 +36,8 @@
     },
     "abort": {
       "already_configured": "This ESO account is already set up.",
-      "reauth_failed": "Re-authentication failed. Check the logs and try again."
+      "reauth_failed": "Re-authentication failed. Check the logs and try again.",
+      "reauth_successful": "Re-authentication was successful and data was refreshed."
     }
   },
   "config_subentries": {

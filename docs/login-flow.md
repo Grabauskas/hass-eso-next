@@ -37,12 +37,14 @@ flow. This document describes the moving parts so you can reason about failures.
 
 ## Module map
 
-| Module           | Responsibility                                            |
-|------------------|-----------------------------------------------------------|
-| `eso_client.py`  | Login, TFA submission, data fetch + dataset parsing       |
-| `form_parser.py` | Extract Drupal form fields from response HTML             |
-| `imap_client.py` | Find and extract the one-time code from the mailbox       |
-| `__init__.py`    | HA wiring: config schema, services, schedule, statistics  |
+| Module            | Responsibility                                                          |
+|-------------------|-------------------------------------------------------------------------|
+| `eso_client.py`   | Login, TFA submission, data fetch + dataset parsing                     |
+| `form_parser.py`  | Extract Drupal form fields from response HTML                           |
+| `imap_client.py`  | Find and extract the one-time code from the mailbox                     |
+| `__init__.py`     | HA wiring: config schema, services, schedule, config-entry setup        |
+| `account.py`      | Per-account runtime: login, fetch, schedule, notify, statistics writes  |
+| `config_flow.py`  | UI config flow: account setup, native TFA step, reauth, object subentries |
 
 ## UI config-flow sequences (config entries)
 
@@ -80,22 +82,24 @@ User fills credentials only  →  step "user"
 
 ### Reauth — without IMAP
 
-When a non-IMAP account's scheduled login finds the session has expired, the
-integration raises a reauthentication flow. Home Assistant shows a notification
-and marks the entry as requiring attention.
+When a non-IMAP account's scheduled login finds no IMAP provider, the
+integration calls `entry.async_start_reauth(hass)` directly. Home Assistant
+shows a notification and marks the entry as requiring attention.
 
 ```
-Scheduled login detects expired session
+Scheduled login detects no IMAP provider
   │
-  └─ raises ConfigEntryAuthFailed
+  └─ EsoAccount.async_login_and_fetch calls entry.async_start_reauth(hass)
        │
        Home Assistant triggers reauth flow  →  step "reauth_confirm"
          │
          User enters the new code ESO emailed  →  ESOClient.submit_code(code)
            │
-           └─ Session refreshed, next scheduled import proceeds normally
+           └─ Authenticated session injected into live account; data fetched
+                immediately via account.async_fetch_objects(now)
 ```
 
+The abort key `reauth_successful` is shown on success (data was fetched).
 The abort key `reauth_failed` is shown if `submit_code` raises an error during
 reauth. The abort key `already_configured` prevents adding the same ESO
 username twice via the UI.

@@ -11,6 +11,7 @@ from homeassistant.config_entries import (
     SubentryFlowResult,
 )
 from homeassistant.core import callback
+from homeassistant.util import dt as dt_util
 
 from .config_model import imap_provider_kwargs
 from .const import (
@@ -19,6 +20,8 @@ from .const import (
     CONF_HOST,
     CONF_ID,
     CONF_IMAP,
+    CONF_IMAP_PASSWORD,
+    CONF_IMAP_USERNAME,
     CONF_NAME,
     CONF_NOTIFY_AFTER_FAILURES,
     CONF_PASSWORD,
@@ -50,8 +53,8 @@ USER_SCHEMA = vol.Schema(
         # Optional IMAP — leave host blank to use manual/reauth mode.
         vol.Optional(CONF_HOST): str,
         vol.Optional(CONF_PORT, default=DEFAULT_PORT): int,
-        vol.Optional("imap_username"): str,
-        vol.Optional("imap_password"): str,
+        vol.Optional(CONF_IMAP_USERNAME): str,
+        vol.Optional(CONF_IMAP_PASSWORD): str,
         vol.Optional(CONF_FOLDER, default=DEFAULT_FOLDER): str,
         vol.Optional(CONF_SENDER, default=DEFAULT_SENDER): str,
         vol.Optional(CONF_SUBJECT, default=DEFAULT_SUBJECT): str,
@@ -68,8 +71,8 @@ def _imap_block(user_input: dict) -> dict | None:
     return {
         CONF_HOST: user_input[CONF_HOST],
         CONF_PORT: user_input.get(CONF_PORT, DEFAULT_PORT),
-        CONF_USERNAME: user_input.get("imap_username") or user_input[CONF_USERNAME],
-        CONF_PASSWORD: user_input.get("imap_password") or user_input[CONF_PASSWORD],
+        CONF_USERNAME: user_input.get(CONF_IMAP_USERNAME) or user_input[CONF_USERNAME],
+        CONF_PASSWORD: user_input.get(CONF_IMAP_PASSWORD) or user_input[CONF_PASSWORD],
         CONF_FOLDER: user_input.get(CONF_FOLDER, DEFAULT_FOLDER),
         CONF_SENDER: user_input.get(CONF_SENDER, DEFAULT_SENDER),
         CONF_SUBJECT: user_input.get(CONF_SUBJECT, DEFAULT_SUBJECT),
@@ -146,6 +149,8 @@ class EsoConfigFlow(ConfigFlow, domain=DOMAIN):
                 return self._create_entry()
             except TfaCodeNeeded:
                 errors["base"] = "invalid_code"
+            except ESOFetchError:
+                errors["base"] = "cannot_connect"
             except Exception:  # noqa: BLE001
                 _LOGGER.exception("Unexpected error submitting ESO code")
                 errors["base"] = "unknown"
@@ -177,8 +182,8 @@ class EsoConfigFlow(ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("ESO reauth start_login failed")
                 return self.async_abort(reason="reauth_failed")
             if not needed:
-                # Login succeeded without a code (rare): reload and finish.
-                return self.async_update_reload_and_abort(entry, data=entry.data)
+                # Login succeeded without a code (rare): fetch immediately.
+                return await self._finish_reauth(entry)
             return self.async_show_form(step_id="reauth_confirm", data_schema=TFA_SCHEMA)
         # Second pass: submit the entered code.
         try:
@@ -191,7 +196,21 @@ class EsoConfigFlow(ConfigFlow, domain=DOMAIN):
         except Exception:  # noqa: BLE001
             _LOGGER.exception("ESO reauth submit_code failed")
             return self.async_abort(reason="reauth_failed")
-        return self.async_update_reload_and_abort(entry, data=entry.data)
+        return await self._finish_reauth(entry)
+
+    async def _finish_reauth(self, entry: ConfigEntry) -> ConfigFlowResult:
+        """Inject the authenticated client into the live account and fetch, then abort."""
+        account = self.hass.data.get(DOMAIN, {}).get(entry.entry_id)
+        if account is None:
+            # Entry not currently loaded; fall back to reload so a fresh login runs.
+            return self.async_update_reload_and_abort(entry, data=entry.data)
+        account.client = self._client
+        try:
+            await account.async_fetch_objects(dt_util.now())
+            account.failures = 0
+        except Exception:  # noqa: BLE001
+            _LOGGER.exception("ESO reauth fetch failed")
+        return self.async_abort(reason="reauth_successful")
 
     def _create_entry(self) -> ConfigFlowResult:
         return self.async_create_entry(
@@ -219,6 +238,8 @@ def _object_schema(defaults: dict | None = None) -> vol.Schema:
 
 
 class EsoObjectSubentryFlow(ConfigSubentryFlow):
+    """Flow for adding/editing an ESO metering point subentry."""
+
     async def async_step_user(self, user_input=None) -> SubentryFlowResult:
         if user_input is not None:
             return self.async_create_entry(
