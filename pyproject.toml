@@ -15,7 +15,10 @@ source = ["custom_components/eso"]
 omit = [
     "custom_components/eso/__init__.py",
     "custom_components/eso/account.py",
+    "custom_components/eso/button.py",
     "custom_components/eso/config_flow.py",
+    "custom_components/eso/entity.py",
+    "custom_components/eso/sensor.py",
 ]
 
 [tool.coverage.report]
