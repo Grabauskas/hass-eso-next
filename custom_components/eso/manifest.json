@@ -1,5 +1,5 @@
 {
-  "domain": "eso_next",
+  "domain": "eso",
   "name": "ESO Energy Consumption",
   "codeowners": ["@Grabauskas"],
   "dependencies": ["recorder"],
