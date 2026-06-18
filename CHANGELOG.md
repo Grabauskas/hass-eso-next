@@ -20,7 +20,8 @@ brands PR is merged, the HACS validation workflow ignores the brands check.
   `unit_class`). Verified against the 2025.11 recorder API; no code migration
   was required.
 - Updated `manifest.json`: code owner `@Grabauskas`, new documentation and
-  issue-tracker URLs, version `0.1.0`, and a declared `recorder` dependency.
+  issue-tracker URLs, version `0.1.0`, a declared `recorder` dependency, an
+  `iot_class` of `cloud_polling`, and hassfest-conformant key ordering.
 - Upgraded `hacs.json` to the current form with an accurate minimum HA version.
 
 ### Added
