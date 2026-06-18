@@ -5,6 +5,7 @@ import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 from homeassistant.components import persistent_notification
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.typing import ConfigType
@@ -36,6 +37,7 @@ from .eso_client import ESOClient, TfaCodeNeeded
 from .imap_client import DEFAULT_SENDER, DEFAULT_SUBJECT, ImapCodeProvider
 
 _LOGGER = logging.getLogger(__name__)
+PLATFORMS = [Platform.BUTTON, Platform.SENSOR]
 OBJECT_SCHEMA = vol.Schema({
     vol.Required(CONF_NAME): cv.string,
     vol.Required(CONF_ID): cv.string,
@@ -208,15 +210,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     account.unsub = async_track_time_change(
         hass, account.async_login_and_fetch, hour=5, minute=11, second=0
     )
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_update_listener))
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     account = hass.data[DOMAIN].pop(entry.entry_id, None)
     if account and account.unsub:
         account.unsub()
-    return True
+    return unloaded
 
 
 async def async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
