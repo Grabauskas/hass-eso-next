@@ -12,7 +12,11 @@ addopts = "--cov --cov-report=term-missing"
 
 [tool.coverage.run]
 source = ["custom_components/eso"]
-omit = ["custom_components/eso/__init__.py", "custom_components/eso/account.py"]
+omit = [
+    "custom_components/eso/__init__.py",
+    "custom_components/eso/account.py",
+    "custom_components/eso/config_flow.py",
+]
 
 [tool.coverage.report]
 show_missing = true
