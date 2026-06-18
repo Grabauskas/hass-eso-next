@@ -1,4 +1,20 @@
 {
+  "entity": {
+    "button": {
+      "fetch": { "name": "Fetch now" }
+    },
+    "sensor": {
+      "last_fetch": { "name": "Last fetch" },
+      "status": {
+        "name": "Last fetch status",
+        "state": {
+          "success": "Success",
+          "failed": "Failed",
+          "unknown": "Unknown"
+        }
+      }
+    }
+  },
   "config": {
     "step": {
       "user": {

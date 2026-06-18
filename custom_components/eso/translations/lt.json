@@ -1,4 +1,20 @@
 {
+  "entity": {
+    "button": {
+      "fetch": { "name": "Atnaujinti dabar" }
+    },
+    "sensor": {
+      "last_fetch": { "name": "Paskutinis atnaujinimas" },
+      "status": {
+        "name": "Paskutinio atnaujinimo būsena",
+        "state": {
+          "success": "Pavyko",
+          "failed": "Nepavyko",
+          "unknown": "Nežinoma"
+        }
+      }
+    }
+  },
   "config": {
     "step": {
       "user": {
