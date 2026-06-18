@@ -1,0 +1,10 @@
+{
+  "domain": "eso_next",
+  "name": "ESO Energy Consumption",
+  "documentation": "https://github.com/Grabauskas/hass-eso-next",
+  "dependencies": ["recorder"],
+  "codeowners": ["@Grabauskas"],
+  "issue_tracker": "https://github.com/Grabauskas/hass-eso-next/issues",
+  "requirements": ["requests"],
+  "version": "0.1.0"
+}
