@@ -31,6 +31,32 @@
         "title": "Iš naujo įveskite ESO kodą",
         "description": "ESO atsiuntė naują prisijungimo kodą. Įveskite jį, kad atnaujintumėte prieigą.",
         "data": { "code": "Kodas" }
+      },
+      "object": {
+        "title": "Pridėti ESO objektą",
+        "description": "Pridėkite matavimo tašką, kurio duomenis importuoti. Daugiau galėsite pridėti vėliau iš integracijos meniu.",
+        "data": {
+          "name": "Pavadinimas",
+          "id": "Objekto ID",
+          "consumed": "Importuoti suvartotą energiją",
+          "returned": "Importuoti grąžintą energiją",
+          "price_entity": "Kainos objektas (nebūtina)",
+          "price_currency": "Kainos valiuta"
+        }
+      },
+      "reconfigure": {
+        "title": "Perkonfigūruoti ESO",
+        "description": "Pakeiskite ESO slaptažodį ir IMAP nustatymus. Palikite IMAP serverį tuščią, jei kodą norėsite įvesti rankiniu būdu.",
+        "data": {
+          "password": "ESO slaptažodis",
+          "host": "IMAP serveris (nebūtina)",
+          "port": "IMAP prievadas",
+          "imap_username": "IMAP naudotojas (numatytasis – ESO naudotojas)",
+          "imap_password": "IMAP slaptažodis (numatytasis – ESO slaptažodis)",
+          "folder": "IMAP aplankas",
+          "sender": "Kodo laiško siuntėjas",
+          "subject": "Kodo laiško tema"
+        }
       }
     },
     "progress": {
@@ -44,6 +70,7 @@
       "imap_unreachable": "Nepavyko pasiekti IMAP pašto serverio. Patikrinkite serverį/prievadą ir ar Home Assistant turi prie jo tinklo prieigą.",
       "imap_auth": "IMAP pašto serveris atmetė naudotoją/slaptažodį.",
       "code_timeout": "Prisijungimo kodas laiku neatkeliavo į pašto dėžutę. Patikrinkite siuntėją/temą/aplanką ir bandykite dar kartą.",
+      "missing_object_id": "Objekto ID privalomas.",
       "unknown": "Netikėta klaida. Patikrinkite žurnalus."
     },
     "abort": {
@@ -63,6 +90,11 @@
   "config_subentries": {
     "object": {
       "title": "ESO objektas",
+      "entry_type": "ESO objektas",
+      "initiate_flow": {
+        "user": "Pridėti ESO objektą",
+        "reconfigure": "Redaguoti ESO objektą"
+      },
       "step": {
         "user": {
           "title": "Pridėti ESO objektą",

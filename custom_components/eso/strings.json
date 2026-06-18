@@ -31,6 +31,32 @@
         "title": "Re-enter ESO code",
         "description": "ESO emailed a new login code. Enter it to refresh access.",
         "data": { "code": "Code" }
+      },
+      "object": {
+        "title": "Add ESO object",
+        "description": "Add a metering point to import. You can add more later from the integration's menu.",
+        "data": {
+          "name": "Name",
+          "id": "Object ID",
+          "consumed": "Import consumed energy",
+          "returned": "Import returned energy",
+          "price_entity": "Price entity (optional)",
+          "price_currency": "Price currency"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure ESO",
+        "description": "Edit your ESO password and IMAP settings. Leave the IMAP host blank to switch to manual code entry.",
+        "data": {
+          "password": "ESO password",
+          "host": "IMAP host (optional)",
+          "port": "IMAP port",
+          "imap_username": "IMAP username (defaults to ESO username)",
+          "imap_password": "IMAP password (defaults to ESO password)",
+          "folder": "IMAP folder",
+          "sender": "Code email sender",
+          "subject": "Code email subject"
+        }
       }
     },
     "progress": {
@@ -44,6 +70,7 @@
       "imap_unreachable": "Could not reach your IMAP mail server. Check the host/port and that Home Assistant has network access to it.",
       "imap_auth": "Your IMAP mail server rejected the username/password.",
       "code_timeout": "No login code arrived in your mailbox in time. Check the sender/subject/folder and try again.",
+      "missing_object_id": "Object ID is required.",
       "unknown": "Unexpected error. Check the logs."
     },
     "abort": {
@@ -63,6 +90,11 @@
   "config_subentries": {
     "object": {
       "title": "ESO object",
+      "entry_type": "ESO object",
+      "initiate_flow": {
+        "user": "Add ESO object",
+        "reconfigure": "Edit ESO object"
+      },
       "step": {
         "user": {
           "title": "Add ESO object",

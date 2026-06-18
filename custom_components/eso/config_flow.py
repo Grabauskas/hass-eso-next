@@ -138,7 +138,7 @@ class EsoConfigFlow(ConfigFlow, domain=DOMAIN):
                     # (it re-rendered the login page) and we must not create an
                     # entry.
                     if self._client.is_authenticated():
-                        return self._create_entry()
+                        return await self.async_step_object()
                     errors["base"] = "invalid_auth"
                 elif code_provider is None:
                     return await self.async_step_tfa()
@@ -192,8 +192,8 @@ class EsoConfigFlow(ConfigFlow, domain=DOMAIN):
         return None
 
     async def async_step_finish(self, user_input=None) -> ConfigFlowResult:
-        """Terminal step after a successful background login: create the entry."""
-        return self._create_entry()
+        """After a successful background login, collect the first object."""
+        return await self.async_step_object()
 
     async def async_step_wait_code_failed(self, user_input=None) -> ConfigFlowResult:
         """Re-display the credentials form with the error from the background
@@ -211,7 +211,7 @@ class EsoConfigFlow(ConfigFlow, domain=DOMAIN):
                 await self.hass.async_add_executor_job(
                     self._client.submit_code, user_input[CONF_CODE]
                 )
-                return self._create_entry()
+                return await self.async_step_object()
             except TfaSessionExpired:
                 # Window lapsed / no pending challenge: mint a fresh one so the
                 # user can enter the newly emailed code instead of being stuck.
@@ -325,11 +325,56 @@ class EsoConfigFlow(ConfigFlow, domain=DOMAIN):
         account.failures = 0
         return self.async_abort(reason="reauth_successful")
 
-    def _create_entry(self) -> ConfigFlowResult:
-        return self.async_create_entry(
-            title=self._data[CONF_USERNAME],
-            data=self._data,
-            options=self._options,
+    async def async_step_object(self, user_input=None) -> ConfigFlowResult:
+        """Collect the first metering object, then create the entry with it as a
+        subentry. An account with no object imports nothing, so setup requires at
+        least one; further objects are added later via 'Add ESO object'."""
+        errors: dict = {}
+        if user_input is not None:
+            if not (user_input.get(CONF_ID) or "").strip():
+                errors["base"] = "missing_object_id"
+            else:
+                return self.async_create_entry(
+                    title=self._data[CONF_USERNAME],
+                    data=self._data,
+                    options=self._options,
+                    subentries=[
+                        {
+                            "subentry_type": "object",
+                            "title": user_input[CONF_NAME],
+                            "data": user_input,
+                            "unique_id": None,
+                        }
+                    ],
+                )
+        return self.async_show_form(
+            step_id="object", data_schema=_object_schema(user_input), errors=errors
+        )
+
+    async def async_step_reconfigure(self, user_input=None) -> ConfigFlowResult:
+        """Edit the ESO password and IMAP settings of an existing entry without
+        deleting it. The username is the entry identity and stays fixed; clearing
+        the IMAP host switches the account to manual code entry."""
+        entry = self._get_reconfigure_entry()
+        errors: dict = {}
+        if user_input is not None:
+            merged = {
+                **user_input,
+                CONF_USERNAME: entry.data[CONF_USERNAME],
+                CONF_PASSWORD: user_input[CONF_PASSWORD],
+            }
+            new_data = {
+                CONF_USERNAME: entry.data[CONF_USERNAME],
+                CONF_PASSWORD: user_input[CONF_PASSWORD],
+            }
+            imap = imap_block(merged)
+            if imap:
+                new_data[CONF_IMAP] = imap
+            return self.async_update_reload_and_abort(entry, data=new_data)
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=_reconfigure_schema(entry.data),
+            errors=errors,
         )
 
 
@@ -346,6 +391,26 @@ def _object_schema(defaults: dict | None = None) -> vol.Schema:
                 CONF_PRICE_CURRENCY,
                 default=d.get(CONF_PRICE_CURRENCY, DEFAULT_PRICE_CURRENCY),
             ): str,
+        }
+    )
+
+
+def _reconfigure_schema(data: dict) -> vol.Schema:
+    """Schema for the reconfigure step, pre-filled from the stored entry data.
+
+    Mirrors the IMAP field names of USER_SCHEMA so imap_block() can rebuild the
+    stored block. The username is omitted (it is the entry identity)."""
+    imap = data.get(CONF_IMAP) or {}
+    return vol.Schema(
+        {
+            vol.Required(CONF_PASSWORD, default=data[CONF_PASSWORD]): str,
+            vol.Optional(CONF_HOST, default=imap.get(CONF_HOST, "")): str,
+            vol.Optional(CONF_PORT, default=imap.get(CONF_PORT, DEFAULT_PORT)): int,
+            vol.Optional(CONF_IMAP_USERNAME, default=imap.get(CONF_USERNAME, "")): str,
+            vol.Optional(CONF_IMAP_PASSWORD, default=imap.get(CONF_PASSWORD, "")): str,
+            vol.Optional(CONF_FOLDER, default=imap.get(CONF_FOLDER, DEFAULT_FOLDER)): str,
+            vol.Optional(CONF_SENDER, default=imap.get(CONF_SENDER, DEFAULT_SENDER)): str,
+            vol.Optional(CONF_SUBJECT, default=imap.get(CONF_SUBJECT, DEFAULT_SUBJECT)): str,
         }
     )
 
