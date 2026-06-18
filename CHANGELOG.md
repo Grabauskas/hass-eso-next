@@ -9,6 +9,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Initial release of `hass-eso-next`, a fork of
 [`algirdasc/hass-eso`](https://github.com/algirdasc/hass-eso).
 
+The `eso_next` brand is not yet registered in `home-assistant/brands`. Until a
+brands PR is merged, the HACS validation workflow ignores the brands check.
+
 ### Changed
 - Renamed the Home Assistant domain from `eso` to `eso_next` (directory,
   `DOMAIN`, services `eso_next.*`, and the `eso_next_tfa_required` event).
@@ -34,7 +37,3 @@ Initial release of `hass-eso-next`, a fork of
   an unused `ZoneInfo` import from `eso_client.py`.
 - Raw developer artifacts (`docs/email.txt`, the saved TFA HTML page) and the
   upstream `manual-flow.md` (replaced by `docs/login-flow.md`).
-
-### Notes
-- The `eso_next` brand is not yet registered in `home-assistant/brands`. Until a
-  brands PR is merged, the HACS validation workflow ignores the brands check.

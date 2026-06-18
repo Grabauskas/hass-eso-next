@@ -164,7 +164,7 @@ automation:
       - platform: event
         event_type: eso_next_tfa_required
     action:
-      - service: notify.mobile_app_your_phone
+      - action: notify.mobile_app_your_phone
         data:
           message: "Enter your ESO login code"
           data:
@@ -182,7 +182,7 @@ automation:
         event_data:
           action: "ESO_TFA_CODE"
     action:
-      - service: eso_next.submit_tfa_code
+      - action: eso_next.submit_tfa_code
         data:
           code: "{{ trigger.event.data.reply_text }}"
 ```
