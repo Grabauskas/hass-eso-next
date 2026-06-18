@@ -26,7 +26,7 @@ from .imap_client import DEFAULT_SENDER, DEFAULT_SUBJECT, ImapCodeProvider
 from .statistics_builder import build_cost_rows, build_energy_rows, local_datetime
 
 _LOGGER = logging.getLogger(__name__)
-DOMAIN = "eso_next"
+DOMAIN = "eso"
 CONF_OBJECTS = "objects"
 CONF_CONSUMED = "consumed"
 CONF_RETURNED = "returned"
@@ -100,7 +100,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     state = {"failures": 0}
     notify_after = conf[CONF_NOTIFY_AFTER_FAILURES]
-    NOTIFY_ID = "eso_next_tfa"
+    NOTIFY_ID = "eso_tfa"
 
     async def async_fetch_objects(now: datetime) -> None:
         any_failed = False
@@ -128,7 +128,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         if state["failures"] == notify_after:
             _notify(
                 "ESO automatic login failed repeatedly. Complete it manually: call "
-                "eso_next.start_login, then eso_next.submit_tfa_code with the emailed code.",
+                "eso.start_login, then eso.submit_tfa_code with the emailed code.",
                 "ESO login needs attention",
             )
         if not retry:
@@ -162,7 +162,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         if hass.is_stopping:
             return
         _notify(
-            "Time to refresh ESO data. Call eso_next.start_login, then eso_next.submit_tfa_code "
+            "Time to refresh ESO data. Call eso.start_login, then eso.submit_tfa_code "
             "with the code emailed to you.",
             "ESO data refresh due",
         )
@@ -175,9 +175,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             _notify(f"ESO login failed to start: {e}", "ESO login error")
             return
         if needed:
-            hass.bus.async_fire("eso_next_tfa_required", {})
+            hass.bus.async_fire("eso_tfa_required", {})
             _notify(
-                "ESO emailed you a login code. Submit it: call eso_next.submit_tfa_code "
+                "ESO emailed you a login code. Submit it: call eso.submit_tfa_code "
                 "with data code: '<the 6-digit code>'.",
                 "ESO code required",
             )
@@ -204,8 +204,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     async def handle_fetch_now(call) -> None:
         if code_provider is None:
             _notify(
-                "eso_next.fetch_now needs an imap: config block (auto mode). Without it, "
-                "use eso_next.start_login then eso_next.submit_tfa_code.",
+                "eso.fetch_now needs an imap: config block (auto mode). Without it, "
+                "use eso.start_login then eso.submit_tfa_code.",
                 "ESO fetch_now unavailable",
             )
             return
