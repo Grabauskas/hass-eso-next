@@ -9,8 +9,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Initial release of `hass-eso-next`, a fork of
 [`algirdasc/hass-eso`](https://github.com/algirdasc/hass-eso).
 
-The `eso_next` brand is not yet registered in `home-assistant/brands`. Until a
-brands PR is merged, the HACS validation workflow ignores the brands check.
+This is a HACS custom integration and intentionally does not register an
+official brand in `home-assistant/brands`. The HACS validation workflow uses
+`ignore: brands` for this reason, and the integration uses Home Assistant's
+default icon.
 
 ### Changed
 - Renamed the Home Assistant domain from `eso` to `eso_next` (directory,
