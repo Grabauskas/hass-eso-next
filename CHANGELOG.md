@@ -38,3 +38,10 @@ brands PR is merged, the HACS validation workflow ignores the brands check.
   an unused `ZoneInfo` import from `eso_client.py`.
 - Raw developer artifacts (`docs/email.txt`, the saved TFA HTML page) and the
   upstream `manual-flow.md` (replaced by `docs/login-flow.md`).
+
+### Fixed
+- Cost statistics are no longer inserted as all-zero values when no price
+  statistics exist for the period. `async_insert_cost_statistics` now skips
+  insertion on empty price data; the guard previously tested `prices is None`,
+  but the price lookup returns an empty dict (never `None`) on the no-data
+  path, so zero-cost rows were written instead. (Pre-existing upstream bug.)

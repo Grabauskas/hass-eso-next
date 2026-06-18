@@ -290,7 +290,10 @@ async def async_insert_cost_statistics(
     start_time = datetime.fromtimestamp(min(cons_dataset.keys())).replace(tzinfo=dt_util.get_time_zone("Europe/Vilnius"))
     end_time = datetime.fromtimestamp(max(cons_dataset.keys())).replace(tzinfo=dt_util.get_time_zone("Europe/Vilnius"))
     prices = await _async_generate_price_dict(hass, obj, start_time, end_time)
-    if prices is None:
+    if not prices:
+        # No price statistics available — skip cost insertion entirely rather
+        # than writing all-zero cost stats (_async_generate_price_dict returns
+        # an empty dict, never None, on the no-data path).
         return
     cost_metadata = StatisticMetaData(
         has_sum=True,
