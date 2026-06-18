@@ -49,6 +49,7 @@ class EsoAccount:
         self.notify_after_failures = notify_after_failures
         self.entry = entry
         self.failures = 0
+        self.unsub = None  # scheduler cancel handle (config-entry accounts)
 
     def notify(self, message: str, title: str) -> None:
         persistent_notification.async_create(
