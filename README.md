@@ -13,12 +13,6 @@ ESO publishes data for the last 24 hours, so the refresh rate is slow (a check
 runs roughly every couple of hours). For real-time figures, use a P1 interface
 or a third-party meter (e.g. Shelly 3EM).
 
-## Disclaimer
-
-This component is in a testing stage. Errors, miscalculations, and breaking
-changes should be expected. Please raise feedback and requests as
-[issues](https://github.com/Grabauskas/hass-eso-next/issues).
-
 ## Requirements
 
 - Home Assistant **2025.11.0** or newer (the integration uses the current
