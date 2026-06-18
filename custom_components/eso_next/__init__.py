@@ -23,6 +23,7 @@ from homeassistant.util import dt as dt_util
 
 from .eso_client import ESOClient, TfaCodeNeeded
 from .imap_client import DEFAULT_SENDER, DEFAULT_SUBJECT, ImapCodeProvider
+from .statistics_builder import build_cost_rows, build_energy_rows, local_datetime
 
 _LOGGER = logging.getLogger(__name__)
 DOMAIN = "eso_next"
@@ -250,21 +251,12 @@ async def async_insert_statistics(
         async_add_external_statistics(hass, metadata, statistics)
 
 async def _async_get_statistics(hass: HomeAssistant, metadata: StatisticMetaData, generation_data: dict) -> list[StatisticData]:
-    statistics: list[StatisticData] = []
-    sum_ = None
-    for ts, kwh in generation_data.items():
-        dt_object = datetime.fromtimestamp(ts).replace(tzinfo=dt_util.get_time_zone("Europe/Vilnius"))
-        if sum_ is None:
-            sum_ = await get_previous_sum(hass, metadata, dt_object)
-        sum_ += kwh
-        statistics.append(
-            StatisticData(
-                start=dt_object,
-                state=kwh,
-                sum=sum_
-            )
-        )
-    return statistics
+    if not generation_data:
+        return []
+    first_ts = next(iter(generation_data))
+    previous_sum = await get_previous_sum(hass, metadata, local_datetime(first_ts))
+    rows = build_energy_rows(generation_data, previous_sum)
+    return [StatisticData(start=r["start"], state=r["state"], sum=r["sum"]) for r in rows]
 
 async def get_previous_sum(hass: HomeAssistant, metadata: StatisticMetaData, date: datetime) -> float:
     statistic_id = metadata["statistic_id"]
@@ -286,9 +278,11 @@ async def async_insert_cost_statistics(
 ) -> None:
     if obj[CONF_CONSUMED] is False:
         return
-    cons_dataset = consumption_dataset[ENERGY_TYPE_MAP[CONF_CONSUMED]]
-    start_time = datetime.fromtimestamp(min(cons_dataset.keys())).replace(tzinfo=dt_util.get_time_zone("Europe/Vilnius"))
-    end_time = datetime.fromtimestamp(max(cons_dataset.keys())).replace(tzinfo=dt_util.get_time_zone("Europe/Vilnius"))
+    cons_dataset = consumption_dataset.get(ENERGY_TYPE_MAP[CONF_CONSUMED])
+    if not cons_dataset:
+        return
+    start_time = local_datetime(min(cons_dataset.keys()))
+    end_time = local_datetime(max(cons_dataset.keys()))
     prices = await _async_generate_price_dict(hass, obj, start_time, end_time)
     if not prices:
         # No price statistics available — skip cost insertion entirely rather
@@ -304,22 +298,9 @@ async def async_insert_cost_statistics(
         unit_of_measurement=obj[CONF_PRICE_CURRENCY],
         unit_class=None,
     )
-    cost_stats: list[StatisticData] = []
-    cost_sum_ = None
-    for ts, cons_kwh in cons_dataset.items():
-        dt_object = datetime.fromtimestamp(ts).replace(tzinfo=dt_util.get_time_zone("Europe/Vilnius"))
-        price = prices.get(ts, 0)
-        cost = round(cons_kwh * price, 5)
-        if cost_sum_ is None:
-            cost_sum_ = await get_previous_sum(hass, cost_metadata, start_time)
-        cost_sum_ += cost
-        cost_stats.append(
-            StatisticData(
-                start=dt_object,
-                state=cost,
-                sum=cost_sum_,
-            )
-        )
+    previous_sum = await get_previous_sum(hass, cost_metadata, start_time)
+    rows = build_cost_rows(cons_dataset, prices, previous_sum)
+    cost_stats = [StatisticData(start=r["start"], state=r["state"], sum=r["sum"]) for r in rows]
     _LOGGER.debug(f"Generated cost statistics for {DOMAIN}:energy_{CONF_COST}_{obj[CONF_ID]}: {cost_stats}")
     async_add_external_statistics(hass, cost_metadata, cost_stats)
 

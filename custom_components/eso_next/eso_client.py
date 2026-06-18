@@ -1,10 +1,14 @@
 import logging
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urljoin
+from zoneinfo import ZoneInfo
 
 import requests
 
 from .form_parser import FormParser
+
+# ESO reports consumption timestamps as wall-clock time in Lithuania.
+LOCAL_TZ = ZoneInfo("Europe/Vilnius")
 
 LOGIN_URL = "https://mano.eso.lt/?destination=/consumption"
 GENERATION_URL = "https://mano.eso.lt/consumption?ajax_form=1&_wrapper_format=drupal_ajax"
@@ -173,10 +177,18 @@ class ESOClient:
 
     @staticmethod
     def parse_dataset(dataset: dict) -> dict:
+        # ESO timestamps are wall-clock in Europe/Vilnius. Interpret them in
+        # that zone (not the host's local zone) so the resulting UTC epochs are
+        # host-timezone independent and match the recorder's hourly statistic
+        # keys — required for the cost-price lookup to line up.
+        #
+        # Known limitation: on the autumn DST fall-back, 02:00–03:00 occurs
+        # twice but the wall-clock string can't disambiguate the two instances
+        # (fold defaults to 0), so one of that day's duplicated hours collides.
         result = {}
         for record in dataset["record"]:
             try:
-                dt = datetime.strptime(record["date"], "%Y%m%d%H%M")
+                dt = datetime.strptime(record["date"], "%Y%m%d%H%M").replace(tzinfo=LOCAL_TZ)
                 ts = dt.timestamp()
                 val = abs(float(record["value"])) if record["value"] is not None else 0.0
                 result[ts] = val

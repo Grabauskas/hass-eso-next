@@ -1,8 +1,14 @@
 from datetime import datetime
+from zoneinfo import ZoneInfo
+
+VILNIUS = ZoneInfo("Europe/Vilnius")
 
 
 def _ts(stamp: str) -> float:
-    return datetime.strptime(stamp, "%Y%m%d%H%M").timestamp()
+    # ESO reports wall-clock times in Europe/Vilnius; parse_dataset must turn
+    # them into true UTC epochs (host-timezone independent) so they line up
+    # with the recorder's hourly statistic keys.
+    return datetime.strptime(stamp, "%Y%m%d%H%M").replace(tzinfo=VILNIUS).timestamp()
 
 
 def test_parse_dataset_basic_and_abs_and_null(eso_module):
