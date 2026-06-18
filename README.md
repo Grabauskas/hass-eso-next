@@ -1,4 +1,4 @@
-# ESO Energy Statistics Import (`hass-eso-next`)
+# ESO Energy Statistics Import with TFA (`hass-eso-next`)
 
 > **Fork notice.** This is a maintained fork of
 > [`algirdasc/hass-eso`](https://github.com/algirdasc/hass-eso). It preserves the
