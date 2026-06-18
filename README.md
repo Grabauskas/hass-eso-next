@@ -20,6 +20,12 @@ or a third-party meter (e.g. Shelly 3EM).
 
 ## Installation
 
+> [!IMPORTANT]
+> This integration uses the same `eso` domain as the upstream
+> [`algirdasc/hass-eso`](https://github.com/algirdasc/hass-eso). The two cannot
+> coexist — **uninstall `algirdasc/hass-eso` (and remove it from HACS) before
+> installing this one**, then restart Home Assistant.
+
 ### HACS (custom repository)
 
 1. HACS → Integrations → **Custom repositories**.
