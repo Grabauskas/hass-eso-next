@@ -1,5 +1,5 @@
 {
-  "domain": "eso_next",
+  "domain": "eso",
   "name": "ESO Energy Consumption",
   "codeowners": ["@Grabauskas"],
   "dependencies": ["recorder"],
@@ -7,5 +7,5 @@
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/Grabauskas/hass-eso-next/issues",
   "requirements": ["requests"],
-  "version": "0.1.0"
+  "version": "0.1.1"
 }

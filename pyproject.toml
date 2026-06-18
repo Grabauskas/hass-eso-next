@@ -11,8 +11,8 @@ testpaths = ["tests"]
 addopts = "--cov --cov-report=term-missing"
 
 [tool.coverage.run]
-source = ["custom_components/eso_next"]
-omit = ["custom_components/eso_next/__init__.py"]
+source = ["custom_components/eso"]
+omit = ["custom_components/eso/__init__.py"]
 
 [tool.coverage.report]
 show_missing = true

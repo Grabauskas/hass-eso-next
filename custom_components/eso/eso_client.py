@@ -49,7 +49,7 @@ class ESOClient:
         if not self._start_credentials():
             return  # no TFA challenge; already at consumption page
         if self.code_provider is None:
-            raise TfaCodeNeeded("ESO requires an email code; configure imap or use the eso_next.start_login service")
+            raise TfaCodeNeeded("ESO requires an email code; configure imap or use the eso.start_login service")
         code = self.code_provider.wait_for_code(self._pending["requested_at"])
         self._submit_tfa(code)
 

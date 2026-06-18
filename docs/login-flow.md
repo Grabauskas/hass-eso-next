@@ -17,8 +17,8 @@ flow. This document describes the moving parts so you can reason about failures.
    - *Auto mode:* `ImapCodeProvider.wait_for_code()` polls the configured
      mailbox over IMAP, searching for the newest message from `savitarna@eso.lt`
      with the expected subject, and extracts the 6-digit code with a regex.
-   - *Manual mode:* the integration fires `eso_next_tfa_required` and raises a
-     notification; you submit the code via `eso_next.submit_tfa_code`.
+   - *Manual mode:* the integration fires `eso_tfa_required` and raises a
+     notification; you submit the code via `eso.submit_tfa_code`.
 4. **Submit the code.** `ESOClient._submit_tfa()` posts the code to the TFA
    action URL. On success the session lands on the consumption page.
 5. **Fetch data.** `ESOClient.fetch_dataset()` posts to the Drupal AJAX endpoint

@@ -4,6 +4,30 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-06-18
+
+Switched the integration to the `eso` domain so HACS and the Home Assistant
+dashboard display the existing `eso` brand logo from `home-assistant/brands`
+(HACS resolves the brand image by domain, with no repository-local override).
+
+### Changed
+- Renamed the integration domain from `eso_next` back to `eso` — component
+  directory, `DOMAIN`, config key `eso:`, services `eso.*`, the
+  `eso_tfa_required` event, the `eso_tfa` notification, and the `eso:energy_*`
+  statistic IDs — to reuse the upstream `eso` brand logo on the HACS card and
+  HA dashboard.
+- Dropped `ignore: brands` from the HACS validation workflow, since the `eso`
+  brand is registered upstream and now validates.
+- Renamed the HACS display name to **ESO Energy Statistics Import with TFA**
+  (`hacs.json` and the README title).
+
+### Breaking
+- Upgrading from 0.1.0 requires renaming the `eso_next:` key in
+  `configuration.yaml` to `eso:` and updating any `eso_next.*` service calls or
+  `eso_next_tfa_required` automations. Existing `eso_next:*` statistics are not
+  migrated. The integration now shares the `eso` domain with `algirdasc/hass-eso`
+  and cannot be installed alongside it.
+
 ## [0.1.0] - 2026-06-18
 
 Initial release of `hass-eso-next`, a fork of

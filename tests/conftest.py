@@ -6,23 +6,23 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-ESO_DIR = REPO_ROOT / "custom_components" / "eso_next"
+ESO_DIR = REPO_ROOT / "custom_components" / "eso"
 
-# Register a synthetic top-level package "eso_next" pointing at the component
-# directory. This lets us import eso_next.form_parser / eso_next.eso_client /
-# eso_next.imap_client (which use relative imports) WITHOUT executing
-# custom_components/eso_next/__init__.py, whose Home Assistant imports are
+# Register a synthetic top-level package "eso" pointing at the component
+# directory. This lets us import eso.form_parser / eso.eso_client /
+# eso.imap_client (which use relative imports) WITHOUT executing
+# custom_components/eso/__init__.py, whose Home Assistant imports are
 # unavailable in unit tests.
-if "eso_next" not in sys.modules:
-    pkg = types.ModuleType("eso_next")
+if "eso" not in sys.modules:
+    pkg = types.ModuleType("eso")
     pkg.__path__ = [str(ESO_DIR)]
-    sys.modules["eso_next"] = pkg
+    sys.modules["eso"] = pkg
 
 
 @pytest.fixture
 def eso_module():
     def _load(name):
-        return importlib.import_module(f"eso_next.{name}")
+        return importlib.import_module(f"eso.{name}")
     return _load
 
 

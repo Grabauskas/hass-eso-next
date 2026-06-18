@@ -1,5 +1,5 @@
 {
-  "name": "ESO Energy Statistics Import",
+  "name": "ESO Energy Statistics Import with TFA",
   "content_in_root": false,
   "render_readme": true,
   "homeassistant": "2025.11.0"
