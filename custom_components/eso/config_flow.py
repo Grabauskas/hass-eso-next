@@ -3,22 +3,36 @@
 import logging
 
 import voluptuous as vol
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    ConfigSubentryFlow,
+    SubentryFlowResult,
+)
+from homeassistant.core import callback
 
 from .config_model import imap_provider_kwargs
 from .const import (
+    CONF_CONSUMED,
     CONF_FOLDER,
     CONF_HOST,
+    CONF_ID,
     CONF_IMAP,
+    CONF_NAME,
     CONF_NOTIFY_AFTER_FAILURES,
     CONF_PASSWORD,
     CONF_PORT,
+    CONF_PRICE_CURRENCY,
+    CONF_PRICE_ENTITY,
+    CONF_RETURNED,
     CONF_SENDER,
     CONF_SUBJECT,
     CONF_USERNAME,
     DEFAULT_FOLDER,
     DEFAULT_NOTIFY_AFTER_FAILURES,
     DEFAULT_PORT,
+    DEFAULT_PRICE_CURRENCY,
     DEFAULT_SENDER,
     DEFAULT_SUBJECT,
     DOMAIN,
@@ -64,6 +78,11 @@ def _imap_block(user_input: dict) -> dict | None:
 
 class EsoConfigFlow(ConfigFlow, domain=DOMAIN):
     VERSION = 1
+
+    @classmethod
+    @callback
+    def async_get_supported_subentry_types(cls, config_entry: ConfigEntry):
+        return {"object": EsoObjectSubentryFlow}
 
     def __init__(self) -> None:
         self._client: ESOClient | None = None
@@ -179,4 +198,40 @@ class EsoConfigFlow(ConfigFlow, domain=DOMAIN):
             title=self._data[CONF_USERNAME],
             data=self._data,
             options=self._options,
+        )
+
+
+def _object_schema(defaults: dict | None = None) -> vol.Schema:
+    d = defaults or {}
+    return vol.Schema(
+        {
+            vol.Required(CONF_NAME, default=d.get(CONF_NAME, "")): str,
+            vol.Required(CONF_ID, default=d.get(CONF_ID, "")): str,
+            vol.Required(CONF_CONSUMED, default=d.get(CONF_CONSUMED, True)): bool,
+            vol.Required(CONF_RETURNED, default=d.get(CONF_RETURNED, False)): bool,
+            vol.Optional(CONF_PRICE_ENTITY, default=d.get(CONF_PRICE_ENTITY, "")): str,
+            vol.Required(
+                CONF_PRICE_CURRENCY,
+                default=d.get(CONF_PRICE_CURRENCY, DEFAULT_PRICE_CURRENCY),
+            ): str,
+        }
+    )
+
+
+class EsoObjectSubentryFlow(ConfigSubentryFlow):
+    async def async_step_user(self, user_input=None) -> SubentryFlowResult:
+        if user_input is not None:
+            return self.async_create_entry(
+                title=user_input[CONF_NAME], data=user_input
+            )
+        return self.async_show_form(step_id="user", data_schema=_object_schema())
+
+    async def async_step_reconfigure(self, user_input=None) -> SubentryFlowResult:
+        subentry = self._get_reconfigure_subentry()
+        if user_input is not None:
+            return self.async_update_and_abort(
+                self._get_entry(), subentry, title=user_input[CONF_NAME], data=user_input
+            )
+        return self.async_show_form(
+            step_id="reconfigure", data_schema=_object_schema(subentry.data)
         )
