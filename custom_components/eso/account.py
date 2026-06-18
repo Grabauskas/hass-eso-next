@@ -36,7 +36,7 @@ from .const import (
 from .statistics_builder import build_cost_rows, build_energy_rows, local_datetime
 
 _LOGGER = logging.getLogger(__name__)
-RETRY_DELAY_SECONDS = 3 * 3600  # 3 valandų pauzė tarp retry
+RETRY_DELAY_SECONDS = 3 * 3600  # 3-hour pause between retries
 NOTIFY_ID = "eso_tfa"
 
 

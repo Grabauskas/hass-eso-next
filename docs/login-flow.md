@@ -93,13 +93,24 @@ Scheduled login detects no IMAP provider
        │
        Home Assistant triggers reauth flow  →  step "reauth_confirm"
          │
-         User enters the new code ESO emailed  →  ESOClient.submit_code(code)
-           │
-           └─ Authenticated session injected into live account; data fetched
-                immediately via account.async_fetch_objects(now)
+         User confirms (or edits) the ESO password  →  ESOClient.start_login()
+         │    (ESO emails a fresh code)
+         │
+         step "reauth_code"  →  User enters the emailed code
+         │                        →  ESOClient.submit_code(code)
+         │
+         └─ Password change (if any) persisted; authenticated session injected
+              into the live account; data fetched immediately via
+              account.async_fetch_objects(now)
 ```
 
-The abort key `reauth_successful` is shown on success (data was fetched).
-The abort key `reauth_failed` is shown if `submit_code` raises an error during
-reauth. The abort key `already_configured` prevents adding the same ESO
-username twice via the UI.
+The password defaults to the stored one, so an account that only needs a fresh
+code can submit `reauth_confirm` unchanged; a changed ESO password can be fixed
+here without deleting the entry.
+
+The abort key `reauth_successful` is shown only when the post-login fetch
+actually succeeded. `reauth_failed` is shown if the login or fetch raises during
+reauth. On the `reauth_code` step, a rejected code shows `invalid_code` and an
+expired/lapsed code window shows `code_expired` after a fresh code is minted, so
+the user is never trapped. The abort key `already_configured` prevents adding
+the same ESO username twice via the UI.

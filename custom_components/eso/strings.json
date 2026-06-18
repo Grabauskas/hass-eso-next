@@ -23,6 +23,11 @@
         "data": { "code": "Code" }
       },
       "reauth_confirm": {
+        "title": "Re-authenticate ESO",
+        "description": "Confirm your ESO password (edit it if it changed). ESO will email a fresh login code.",
+        "data": { "password": "ESO password" }
+      },
+      "reauth_code": {
         "title": "Re-enter ESO code",
         "description": "ESO emailed a new login code. Enter it to refresh access.",
         "data": { "code": "Code" }
@@ -32,12 +37,21 @@
       "invalid_auth": "Login failed. Check your username and password.",
       "cannot_connect": "Could not reach ESO. Try again later.",
       "invalid_code": "That code was not accepted. Check your email and try again.",
+      "code_expired": "The code window expired. We emailed a new code — enter it below.",
       "unknown": "Unexpected error. Check the logs."
     },
     "abort": {
       "already_configured": "This ESO account is already set up.",
       "reauth_failed": "Re-authentication failed. Check the logs and try again.",
       "reauth_successful": "Re-authentication was successful and data was refreshed."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "ESO options",
+        "data": { "notify_after_failures": "Notify after N failures" }
+      }
     }
   },
   "config_subentries": {
@@ -66,6 +80,9 @@
             "price_currency": "Price currency"
           }
         }
+      },
+      "error": {
+        "duplicate_object": "An object with this ID already exists on this account."
       }
     }
   }

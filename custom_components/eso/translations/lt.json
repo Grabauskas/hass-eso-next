@@ -23,6 +23,11 @@
         "data": { "code": "Kodas" }
       },
       "reauth_confirm": {
+        "title": "Pakartotinis ESO prisijungimas",
+        "description": "Patvirtinkite ESO slaptažodį (pakeiskite, jei pasikeitė). ESO atsiųs naują prisijungimo kodą.",
+        "data": { "password": "ESO slaptažodis" }
+      },
+      "reauth_code": {
         "title": "Iš naujo įveskite ESO kodą",
         "description": "ESO atsiuntė naują prisijungimo kodą. Įveskite jį, kad atnaujintumėte prieigą.",
         "data": { "code": "Kodas" }
@@ -32,12 +37,21 @@
       "invalid_auth": "Prisijungti nepavyko. Patikrinkite naudotoją ir slaptažodį.",
       "cannot_connect": "Nepavyko pasiekti ESO. Bandykite vėliau.",
       "invalid_code": "Kodas nepriimtas. Patikrinkite el. paštą ir bandykite dar kartą.",
+      "code_expired": "Kodo galiojimo laikas baigėsi. Atsiuntėme naują kodą – įveskite jį žemiau.",
       "unknown": "Netikėta klaida. Patikrinkite žurnalus."
     },
     "abort": {
       "already_configured": "Ši ESO paskyra jau sukonfigūruota.",
       "reauth_failed": "Pakartotinis prisijungimas nepavyko. Patikrinkite žurnalus.",
       "reauth_successful": "Pakartotinis prisijungimas pavyko ir duomenys atnaujinti."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "ESO nustatymai",
+        "data": { "notify_after_failures": "Pranešti po N nesėkmių" }
+      }
     }
   },
   "config_subentries": {
@@ -66,6 +80,9 @@
             "price_currency": "Kainos valiuta"
           }
         }
+      },
+      "error": {
+        "duplicate_object": "Objektas su šiuo ID šioje paskyroje jau yra."
       }
     }
   }

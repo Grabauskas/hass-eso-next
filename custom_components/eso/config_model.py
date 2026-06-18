@@ -4,6 +4,8 @@ from .const import (
     CONF_FOLDER,
     CONF_HOST,
     CONF_ID,
+    CONF_IMAP_PASSWORD,
+    CONF_IMAP_USERNAME,
     CONF_NAME,
     CONF_PASSWORD,
     CONF_PORT,
@@ -47,3 +49,32 @@ def imap_provider_kwargs(data: dict) -> dict:
         "sender": data.get(CONF_SENDER) or DEFAULT_SENDER,
         "subject": data.get(CONF_SUBJECT) or DEFAULT_SUBJECT,
     }
+
+
+def imap_block(user_input: dict) -> dict | None:
+    """Build the stored IMAP block from the flat config-flow form.
+
+    Returns None when no IMAP host is given (manual/reauth mode). IMAP
+    credentials default to the ESO credentials when left blank.
+    """
+    if not user_input.get(CONF_HOST):
+        return None
+    return {
+        CONF_HOST: user_input[CONF_HOST],
+        CONF_PORT: user_input.get(CONF_PORT, DEFAULT_PORT),
+        CONF_USERNAME: user_input.get(CONF_IMAP_USERNAME) or user_input[CONF_USERNAME],
+        CONF_PASSWORD: user_input.get(CONF_IMAP_PASSWORD) or user_input[CONF_PASSWORD],
+        CONF_FOLDER: user_input.get(CONF_FOLDER, DEFAULT_FOLDER),
+        CONF_SENDER: user_input.get(CONF_SENDER, DEFAULT_SENDER),
+        CONF_SUBJECT: user_input.get(CONF_SUBJECT, DEFAULT_SUBJECT),
+    }
+
+
+def object_id_in_use(existing_ids, new_id: str) -> bool:
+    """True if new_id (whitespace-trimmed) collides with an existing object id.
+
+    Duplicate object ids would produce colliding statistic ids and duplicate
+    fetches, so the subentry flow rejects them.
+    """
+    target = (new_id or "").strip()
+    return any(target == (existing or "").strip() for existing in existing_ids)

@@ -157,12 +157,14 @@ required.
    consumed and/or returned energy. Add as many objects as you need.
 5. To edit or remove an object, open the config entry and click the subentry.
 6. **Reauth:** for accounts without IMAP, Home Assistant will prompt you to
-   re-enter an ESO code whenever a scheduled login requires a fresh one. A
+   re-authenticate whenever a scheduled login requires a fresh code. A
    notification will direct you back to the integration's re-authentication
-   dialog. After you enter the emailed code, the entry's authenticated session
-   is used to fetch and refresh data immediately.
-7. **`notify_after_failures`** is configured when the account is first added
-   and cannot be changed from the UI afterward (there is no options flow).
+   dialog. Confirm (or update) your ESO password — ESO emails a fresh code —
+   then enter that code. The entry's authenticated session is used to fetch and
+   refresh data immediately. Because the password is editable here, a changed
+   ESO password can be fixed without deleting and re-adding the entry.
+7. **`notify_after_failures`** can be changed any time from the entry's
+   **Configure** (options) dialog.
 
 > **YAML still works unchanged.** If you already have an `eso:` block in
 > `configuration.yaml`, it continues to function. UI-configured entries and YAML
