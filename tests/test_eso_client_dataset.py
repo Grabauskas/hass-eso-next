@@ -65,19 +65,27 @@ def test_fetch_dataset_cached(eso_module):
     assert client.fetch_dataset("123", datetime(2026, 6, 17)) == {"P+": {1.0: 9.9}}
 
 
-def test_fetch_no_cookies_returns_empty(eso_module):
+def test_fetch_no_cookies_raises(eso_module):
     mod = eso_module("eso_client")
     client = mod.ESOClient("u", "p")
     client.cookies = None
-    assert client.fetch("123", datetime(2026, 6, 17)) == {}
+    try:
+        client.fetch("123", datetime(2026, 6, 17))
+        assert False, "expected ESOFetchError"
+    except mod.ESOFetchError:
+        pass
 
 
-def test_fetch_wrong_form_returns_empty(eso_module):
+def test_fetch_wrong_form_raises(eso_module):
     mod = eso_module("eso_client")
     client = mod.ESOClient("u", "p")
     client.cookies = {"x": "y"}
     # default form_parser has no form_id -> not the consumption form
-    assert client.fetch("123", datetime(2026, 6, 17)) == {}
+    try:
+        client.fetch("123", datetime(2026, 6, 17))
+        assert False, "expected ESOFetchError"
+    except mod.ESOFetchError:
+        pass
 
 
 def test_get_dataset_missing_returns_none(eso_module):
@@ -130,13 +138,34 @@ def test_fetch_happy_path_returns_json(eso_module):
     assert session.calls[0]["data"]["objects[]"] == "123"
 
 
-def test_fetch_request_exception_returns_empty(eso_module):
+def test_fetch_request_exception_raises(eso_module):
     import requests
 
     mod = eso_module("eso_client")
     session = _FetchSession(exc=requests.exceptions.RequestException("boom"))
     client = _consumption_client(mod, session)
-    assert client.fetch("123", datetime(2026, 6, 17)) == {}
+    try:
+        client.fetch("123", datetime(2026, 6, 17))
+        assert False, "expected ESOFetchError"
+    except mod.ESOFetchError:
+        pass
+
+
+def test_fetch_dataset_does_not_cache_on_hard_failure(eso_module):
+    mod = eso_module("eso_client")
+    client = mod.ESOClient("u", "p")
+
+    def boom(obj, date):
+        raise mod.ESOFetchError("down")
+
+    client.fetch = boom
+    try:
+        client.fetch_dataset("123", datetime(2026, 6, 17))
+        assert False, "expected ESOFetchError"
+    except mod.ESOFetchError:
+        pass
+    # Failure must not leave an empty cached entry that masks later retries.
+    assert client.get_dataset("123") is None
 
 
 def test_get_dataset_present_returns_data(eso_module):

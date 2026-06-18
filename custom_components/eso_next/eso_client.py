@@ -26,6 +26,13 @@ class TfaCodeNeeded(Exception):
     """Raised when an email TFA code is required but cannot be supplied automatically."""
 
 
+class ESOFetchError(Exception):
+    """Raised when a consumption fetch fails for a hard reason (not logged-in,
+    wrong page, or a network error). Distinguishes a genuine failure from ESO
+    simply having no data, so the caller's failure/notification logic engages
+    instead of silently treating the failure as an empty result."""
+
+
 class ESOClient:
     def __init__(self, username: str, password: str, code_provider=None, session: requests.Session | None = None):
         self.username: str = username
@@ -105,13 +112,13 @@ class ESOClient:
         self.form_parser.feed(response.text)
         self._pending = None
 
-    def fetch(self, obj: str, date: datetime) -> dict:
+    def fetch(self, obj: str, date: datetime) -> list:
         if not self.cookies:
             _LOGGER.error("Cookies are empty. Check your credentials.")
-            return {}
+            raise ESOFetchError("Not logged in to ESO (no session cookies)")
         if self.form_parser.get("form_id") != CONSUMPTION_FORM_ID:
             _LOGGER.error("Form ID not found. Check your credentials OR login to ESO and confirm contact information.")
-            return {}
+            raise ESOFetchError("Not on the ESO consumption page")
         headers = {
             "Accept": "application/json",
             "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
@@ -147,13 +154,16 @@ class ESOClient:
             return response.json()
         except requests.exceptions.RequestException as e:
             _LOGGER.error(f"ESO fetch error: {e}")
-            return {}
+            raise ESOFetchError(str(e)) from e
 
-    def fetch_dataset(self, obj: str, date: datetime) -> dict | None:
+    def fetch_dataset(self, obj: str, date: datetime) -> dict:
         if obj in self.dataset:
             return self.dataset[obj]
-        self.dataset[obj] = {}
+        # Build into a local dict and only cache on success, so a hard failure
+        # (ESOFetchError) doesn't leave an empty cached entry that would mask
+        # the data on a later retry.
         data = self.fetch(obj, date)
+        result: dict = {}
         for d in data:
             if d.get("command") == "update_build_id":
                 self.form_parser.set("form_build_id", d["new"])
@@ -164,11 +174,9 @@ class ESOClient:
                 continue
             datasets = d["settings"]["eso_consumption_history_form"]["graphics_data"]["datasets"]
             for dataset in datasets:
-                consumption_type = dataset["key"]
-                if consumption_type not in self.dataset[obj]:
-                    self.dataset[obj][consumption_type] = {}
-                self.dataset[obj][consumption_type] = self.parse_dataset(dataset)
-        return self.dataset[obj]
+                result[dataset["key"]] = self.parse_dataset(dataset)
+        self.dataset[obj] = result
+        return result
 
     def get_dataset(self, obj: str) -> dict | None:
         if obj not in self.dataset:

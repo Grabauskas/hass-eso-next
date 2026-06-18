@@ -144,6 +144,10 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         if hass.is_stopping:
             _LOGGER.debug("HA is stopping, skipping ESO import")
             return
+        if code_provider is None:
+            # Auto import requires IMAP; manual mode uses start_login/submit_tfa_code.
+            _LOGGER.debug("Skipping auto import: no imap config (manual mode)")
+            return
         try:
             _LOGGER.info("Logging in to ESO (auto)...")
             await hass.async_add_executor_job(client.login)

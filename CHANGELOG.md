@@ -30,14 +30,17 @@ default icon.
 - GitHub Actions: pytest + coverage, `hassfest` + HACS validation, `ruff` lint,
   and tag-driven release automation.
 - Characterization tests for dataset parsing and the `fetch` guard paths.
+- `statistics_builder` module holding the (Home Assistant-free) timestamp and
+  cumulative-sum arithmetic, with unit tests covering the energy/cost row
+  building and the cost-price key alignment. Added `tzdata` to the test
+  requirements so `zoneinfo` resolves `Europe/Vilnius` on all platforms.
 - Rebuilt documentation: a from-scratch `README.md`, an updated Gmail setup
   guide, and a new login-flow architecture document.
 
 ### Removed
 - The upstream donation / "Buy Me A Coffee" section (not applicable to this
   fork).
-- Unused imports: `EVENT_HOMEASSISTANT_STARTED` and `Event` from `__init__.py`, and
-  an unused `ZoneInfo` import from `eso_client.py`.
+- Unused imports: `EVENT_HOMEASSISTANT_STARTED` and `Event` from `__init__.py`.
 - Raw developer artifacts (`docs/email.txt`, the saved TFA HTML page) and the
   upstream `manual-flow.md` (replaced by `docs/login-flow.md`).
 
@@ -47,3 +50,16 @@ default icon.
   insertion on empty price data; the guard previously tested `prices is None`,
   but the price lookup returns an empty dict (never `None`) on the no-data
   path, so zero-cost rows were written instead. (Pre-existing upstream bug.)
+- Cost statistics no longer silently compute to zero on hosts whose system
+  timezone is not `Europe/Vilnius`. `parse_dataset` now interprets ESO
+  wall-clock timestamps in `Europe/Vilnius` and emits true UTC epochs, so the
+  per-hour price lookup (keyed by the recorder's UTC hour boundaries) matches
+  instead of missing. Energy timestamps are unaffected.
+- Hard fetch failures (not logged in, wrong page, or a network error) now raise
+  `ESOFetchError` instead of returning an empty result. Previously such a
+  failure was indistinguishable from "ESO had no data" and reset the failure
+  counter, so a persistent login/network breakage never triggered the
+  retry/notification path. A failed fetch also no longer caches an empty
+  dataset that would mask a later retry.
+- `async_auto_import` now no-ops in manual mode (no `imap:` block) instead of
+  attempting a login that always raises.

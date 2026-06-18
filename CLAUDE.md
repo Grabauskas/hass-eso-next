@@ -41,8 +41,11 @@ pure-logic modules that are unit-testable without Home Assistant installed.
 - `eso_client.py` — `ESOClient`: the scraping/login state machine. Posts
   credentials, detects the TFA challenge form, submits the emailed code, then
   fetches the Drupal AJAX consumption endpoint and parses the JSON into
-  `{consumption_type: {unix_ts: kwh}}`. Holds session cookies and a `_pending`
-  TFA challenge with a 15-minute TTL.
+  `{consumption_type: {unix_ts: kwh}}`. The `unix_ts` keys are **true UTC
+  epochs**: `parse_dataset` reads ESO's wall-clock strings as `Europe/Vilnius`
+  so they are host-timezone independent and line up with recorder statistic
+  keys. Holds session cookies and a `_pending` TFA challenge with a 15-minute
+  TTL. Hard fetch failures raise `ESOFetchError` (distinct from "no data").
 - `form_parser.py` — `FormParser` (stdlib `HTMLParser` subclass): extracts
   Drupal hidden form fields (`form_id`, `form_build_id`, `form_token`, `action`)
   from returned HTML. Distinguishing `form_id` values (`TFA_FORM_ID`,
@@ -52,6 +55,11 @@ pure-logic modules that are unit-testable without Home Assistant installed.
   newest message fresher than the login timestamp (with clock skew). Pure
   helpers (`extract_code`, `pick_code`, `build_search_criteria`) are tested
   directly.
+- `statistics_builder.py` — pure (HA-free) helpers that turn ESO datasets into
+  the `{start, state, sum}` rows written as statistics: `local_datetime` (UTC
+  epoch → `Europe/Vilnius`-aware datetime), `build_energy_rows`, and
+  `build_cost_rows`. Kept out of `__init__.py` so the timestamp / cumulative-sum
+  arithmetic stays unit-testable.
 
 ### Login / TFA flow (two modes)
 
