@@ -216,3 +216,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Superpowers process artifacts (specs/plans) — never committed
+docs/superpowers/
