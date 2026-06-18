@@ -1,0 +1,71 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "ESO paskyra",
+        "description": "Įveskite savo mano.eso.lt prisijungimo duomenis. Palikite IMAP serverį tuščią, jei kodą norėsite įvesti rankiniu būdu.",
+        "data": {
+          "username": "ESO naudotojas",
+          "password": "ESO slaptažodis",
+          "notify_after_failures": "Pranešti po N nesėkmių",
+          "host": "IMAP serveris (nebūtina)",
+          "port": "IMAP prievadas",
+          "imap_username": "IMAP naudotojas (numatytasis – ESO naudotojas)",
+          "imap_password": "IMAP slaptažodis (numatytasis – ESO slaptažodis)",
+          "folder": "IMAP aplankas",
+          "sender": "Kodo laiško siuntėjas",
+          "subject": "Kodo laiško tema"
+        }
+      },
+      "tfa": {
+        "title": "Įveskite ESO kodą",
+        "description": "Įveskite vienkartinį kodą, kurį ESO atsiuntė el. paštu.",
+        "data": { "code": "Kodas" }
+      },
+      "reauth_confirm": {
+        "title": "Iš naujo įveskite ESO kodą",
+        "description": "ESO atsiuntė naują prisijungimo kodą. Įveskite jį, kad atnaujintumėte prieigą.",
+        "data": { "code": "Kodas" }
+      }
+    },
+    "error": {
+      "invalid_auth": "Prisijungti nepavyko. Patikrinkite naudotoją ir slaptažodį.",
+      "cannot_connect": "Nepavyko pasiekti ESO. Bandykite vėliau.",
+      "invalid_code": "Kodas nepriimtas. Patikrinkite el. paštą ir bandykite dar kartą.",
+      "unknown": "Netikėta klaida. Patikrinkite žurnalus."
+    },
+    "abort": {
+      "already_configured": "Ši ESO paskyra jau sukonfigūruota.",
+      "reauth_failed": "Pakartotinis prisijungimas nepavyko. Patikrinkite žurnalus."
+    }
+  },
+  "config_subentries": {
+    "object": {
+      "title": "ESO objektas",
+      "step": {
+        "user": {
+          "title": "Pridėti ESO objektą",
+          "data": {
+            "name": "Pavadinimas",
+            "id": "Objekto ID",
+            "consumed": "Importuoti suvartotą energiją",
+            "returned": "Importuoti grąžintą energiją",
+            "price_entity": "Kainos objektas (nebūtina)",
+            "price_currency": "Kainos valiuta"
+          }
+        },
+        "reconfigure": {
+          "title": "Redaguoti ESO objektą",
+          "data": {
+            "name": "Pavadinimas",
+            "id": "Objekto ID",
+            "consumed": "Importuoti suvartotą energiją",
+            "returned": "Importuoti grąžintą energiją",
+            "price_entity": "Kainos objektas (nebūtina)",
+            "price_currency": "Kainos valiuta"
+          }
+        }
+      }
+    }
+  }
+}

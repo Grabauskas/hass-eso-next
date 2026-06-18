@@ -1,0 +1,71 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "ESO account",
+        "description": "Enter your mano.eso.lt credentials. Leave the IMAP host blank to enter the login code manually in the UI.",
+        "data": {
+          "username": "ESO username",
+          "password": "ESO password",
+          "notify_after_failures": "Notify after N failures",
+          "host": "IMAP host (optional)",
+          "port": "IMAP port",
+          "imap_username": "IMAP username (defaults to ESO username)",
+          "imap_password": "IMAP password (defaults to ESO password)",
+          "folder": "IMAP folder",
+          "sender": "Code email sender",
+          "subject": "Code email subject"
+        }
+      },
+      "tfa": {
+        "title": "Enter ESO code",
+        "description": "Enter the one-time code ESO emailed you.",
+        "data": { "code": "Code" }
+      },
+      "reauth_confirm": {
+        "title": "Re-enter ESO code",
+        "description": "ESO emailed a new login code. Enter it to refresh access.",
+        "data": { "code": "Code" }
+      }
+    },
+    "error": {
+      "invalid_auth": "Login failed. Check your username and password.",
+      "cannot_connect": "Could not reach ESO. Try again later.",
+      "invalid_code": "That code was not accepted. Check your email and try again.",
+      "unknown": "Unexpected error. Check the logs."
+    },
+    "abort": {
+      "already_configured": "This ESO account is already set up.",
+      "reauth_failed": "Re-authentication failed. Check the logs and try again."
+    }
+  },
+  "config_subentries": {
+    "object": {
+      "title": "ESO object",
+      "step": {
+        "user": {
+          "title": "Add ESO object",
+          "data": {
+            "name": "Name",
+            "id": "Object ID",
+            "consumed": "Import consumed energy",
+            "returned": "Import returned energy",
+            "price_entity": "Price entity (optional)",
+            "price_currency": "Price currency"
+          }
+        },
+        "reconfigure": {
+          "title": "Edit ESO object",
+          "data": {
+            "name": "Name",
+            "id": "Object ID",
+            "consumed": "Import consumed energy",
+            "returned": "Import returned energy",
+            "price_entity": "Price entity (optional)",
+            "price_currency": "Price currency"
+          }
+        }
+      }
+    }
+  }
+}

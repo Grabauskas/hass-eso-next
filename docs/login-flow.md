@@ -43,3 +43,59 @@ flow. This document describes the moving parts so you can reason about failures.
 | `form_parser.py` | Extract Drupal form fields from response HTML             |
 | `imap_client.py` | Find and extract the one-time code from the mailbox       |
 | `__init__.py`    | HA wiring: config schema, services, schedule, statistics  |
+
+## UI config-flow sequences (config entries)
+
+The same `ESOClient` login machine is used regardless of how the integration is
+configured. The config flow (in `config_flow.py`) drives it differently
+depending on whether IMAP details are provided.
+
+### UI setup — with IMAP
+
+```
+User fills credentials + IMAP fields  →  step "user"
+  │
+  └─ config_flow calls ESOClient.login()
+       │
+       └─ ImapCodeProvider.wait_for_code() reads code automatically
+            │
+            └─ TFA submitted, session valid  →  entry created
+```
+
+The TFA step (`step "tfa"`) is skipped; setup completes in a single dialog.
+
+### UI setup — without IMAP
+
+```
+User fills credentials only  →  step "user"
+  │
+  └─ config_flow calls ESOClient.start_login()
+       │
+       └─ ESO emails the code; flow advances to step "tfa"
+            │
+            User enters code in the UI  →  step "tfa"
+              │
+              └─ ESOClient.submit_code(code)  →  entry created
+```
+
+### Reauth — without IMAP
+
+When a non-IMAP account's scheduled login finds the session has expired, the
+integration raises a reauthentication flow. Home Assistant shows a notification
+and marks the entry as requiring attention.
+
+```
+Scheduled login detects expired session
+  │
+  └─ raises ConfigEntryAuthFailed
+       │
+       Home Assistant triggers reauth flow  →  step "reauth_confirm"
+         │
+         User enters the new code ESO emailed  →  ESOClient.submit_code(code)
+           │
+           └─ Session refreshed, next scheduled import proceeds normally
+```
+
+The abort key `reauth_failed` is shown if `submit_code` raises an error during
+reauth. The abort key `already_configured` prevents adding the same ESO
+username twice via the UI.

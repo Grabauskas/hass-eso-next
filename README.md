@@ -138,6 +138,33 @@ Point `price_entity` at the price entity to create an extra entity tracking
 energy cost. In the Energy dashboard, choose *Use an entity tracking the total
 costs* and select `My House (cost)`.
 
+## Configuration via the UI
+
+The integration supports setup through the Home Assistant UI — no YAML editing
+required.
+
+1. **Settings → Devices & Services → Add Integration** → search for
+   **ESO Energy Consumption** and select it.
+2. Enter your `mano.eso.lt` credentials. If you want automated login, also fill
+   in the IMAP fields (host, port, username, password, folder, sender, subject).
+   Leave the IMAP host blank if you prefer to enter the login code manually.
+3. **With IMAP configured:** the integration reads the one-time code from your
+   mailbox automatically and completes setup without further input.
+   **Without IMAP:** a second dialog titled *Enter ESO code* appears after the
+   credential step. Enter the 6-digit code that ESO emailed you.
+4. Once the config entry is created, open it and click **Add ESO object** to add
+   each meter point. Provide a name, the object ID, and whether to import
+   consumed and/or returned energy. Add as many objects as you need.
+5. To edit or remove an object, open the config entry and click the subentry.
+6. **Reauth:** for accounts without IMAP, Home Assistant will prompt you to
+   re-enter an ESO code whenever a scheduled login requires a fresh one. A
+   notification will direct you back to the integration's re-authentication
+   dialog.
+
+> **YAML still works unchanged.** If you already have an `eso:` block in
+> `configuration.yaml`, it continues to function. UI-configured entries and YAML
+> entries can coexist.
+
 ## Auto mode vs manual mode
 
 ### Auto mode (with `imap:`)
