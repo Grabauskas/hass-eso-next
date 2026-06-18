@@ -43,7 +43,7 @@ from .const import (
     DOMAIN,
 )
 from .eso_client import ESOClient, ESOFetchError, TfaCodeNeeded, TfaSessionExpired
-from .imap_client import ImapCodeProvider
+from .imap_client import ImapAuthError, ImapCodeProvider, ImapConnectError, TfaTimeout
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -84,6 +84,8 @@ class EsoConfigFlow(ConfigFlow, domain=DOMAIN):
         self._data: dict = {}
         self._options: dict = {}
         self._reauth_password: str | None = None
+        self._login_task = None
+        self._progress_error: str | None = None
 
     async def async_step_user(self, user_input=None) -> ConfigFlowResult:
         errors: dict = {}
@@ -113,29 +115,93 @@ class EsoConfigFlow(ConfigFlow, domain=DOMAIN):
                 code_provider=code_provider,
             )
             try:
-                if code_provider is not None:
-                    await self.hass.async_add_executor_job(self._client.login)
-                else:
-                    needed = await self.hass.async_add_executor_job(self._client.start_login)
-                    if needed:
-                        return await self.async_step_tfa()
-                # Auto-login finished, or manual start_login found no TFA challenge.
-                # Either way it is only a real success if we actually reached the
-                # consumption page; otherwise ESO rejected the credentials (it
-                # re-rendered the login page) and we must not create an entry.
-                if self._client.is_authenticated():
-                    return self._create_entry()
-                errors["base"] = "invalid_auth"
-            except TfaCodeNeeded:
-                errors["base"] = "invalid_auth"
+                # Fast credential POST only — never block here. If a code is
+                # needed and IMAP is configured, verify the mailbox is reachable
+                # *before* committing to a long poll, so a bad host/credentials
+                # fail fast with a clear message instead of a silent spinner.
+                needed = await self.hass.async_add_executor_job(self._client.start_login)
+                if needed and code_provider is not None:
+                    await self.hass.async_add_executor_job(code_provider.check_connection)
+            except ImapConnectError:
+                errors["base"] = "imap_unreachable"
+            except ImapAuthError:
+                errors["base"] = "imap_auth"
             except ESOFetchError:
                 errors["base"] = "cannot_connect"
             except Exception:  # noqa: BLE001
                 _LOGGER.exception("Unexpected error during ESO setup")
                 errors["base"] = "unknown"
+            else:
+                if not needed:
+                    # No TFA challenge. Success only if we actually reached the
+                    # consumption page; otherwise ESO rejected the credentials
+                    # (it re-rendered the login page) and we must not create an
+                    # entry.
+                    if self._client.is_authenticated():
+                        return self._create_entry()
+                    errors["base"] = "invalid_auth"
+                elif code_provider is None:
+                    return await self.async_step_tfa()
+                else:
+                    # Auto mode: fetch the emailed code in the background so the
+                    # user sees a real "waiting for the code" progress step.
+                    return await self.async_step_wait_code()
 
         return self.async_show_form(
             step_id="user", data_schema=USER_SCHEMA, errors=errors
+        )
+
+    async def async_step_wait_code(self, user_input=None) -> ConfigFlowResult:
+        """Progress step: poll IMAP for the emailed code and submit it.
+
+        Runs finish_login() (the blocking wait + submit) as a background task so
+        the frontend shows a progress indicator instead of a featureless spinner.
+        """
+        if self._login_task is None:
+            self._login_task = self.hass.async_create_task(self._async_wait_for_code())
+            return self.async_show_progress(
+                step_id="wait_code",
+                progress_action="wait_code",
+                progress_task=self._login_task,
+            )
+        error = self._login_task.result()
+        self._login_task = None
+        if error:
+            self._progress_error = error
+            return self.async_show_progress_done(next_step_id="wait_code_failed")
+        return self.async_show_progress_done(next_step_id="finish")
+
+    async def _async_wait_for_code(self) -> str | None:
+        """Wait for the IMAP code and submit it. Returns an error key, or None on
+        success. Run inside a background task by async_step_wait_code."""
+        try:
+            await self.hass.async_add_executor_job(self._client.finish_login)
+        except TfaTimeout:
+            return "code_timeout"
+        except ImapConnectError:
+            return "imap_unreachable"
+        except ImapAuthError:
+            return "imap_auth"
+        except TfaCodeNeeded:
+            return "invalid_code"
+        except Exception:  # noqa: BLE001
+            _LOGGER.exception("Unexpected error waiting for the ESO code")
+            return "unknown"
+        if not self._client.is_authenticated():
+            return "invalid_auth"
+        return None
+
+    async def async_step_finish(self, user_input=None) -> ConfigFlowResult:
+        """Terminal step after a successful background login: create the entry."""
+        return self._create_entry()
+
+    async def async_step_wait_code_failed(self, user_input=None) -> ConfigFlowResult:
+        """Re-display the credentials form with the error from the background
+        login, so the user can correct input and retry."""
+        return self.async_show_form(
+            step_id="user",
+            data_schema=USER_SCHEMA,
+            errors={"base": self._progress_error or "unknown"},
         )
 
     async def async_step_tfa(self, user_input=None) -> ConfigFlowResult:

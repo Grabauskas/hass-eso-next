@@ -18,6 +18,17 @@ class TfaTimeout(Exception):
     """Raised when no fresh TFA code arrives within the timeout."""
 
 
+class ImapConnectError(Exception):
+    """Raised when the IMAP server cannot be reached (DNS, network, TLS, socket).
+
+    Lets callers show a clear 'could not reach your mail server' message instead
+    of leaking a raw ``OSError`` as an opaque 'unknown' error."""
+
+
+class ImapAuthError(Exception):
+    """Raised when the IMAP server rejects the supplied username/password."""
+
+
 @dataclass
 class Candidate:
     date: datetime
@@ -89,10 +100,43 @@ class ImapCodeProvider:
                 )
             time.sleep(poll_interval)
 
-    def _poll_once(self, since: datetime) -> str | None:
-        imap = imaplib.IMAP4_SSL(self.host, self.port)
+    def check_connection(self) -> None:
+        """Fast reachability + credential check: connect, log in, log out — no
+        polling. Raises ImapConnectError / ImapAuthError so the config flow can
+        fail fast with a clear message instead of blocking on wait_for_code()."""
+        imap = self._connect_and_login()
+        try:
+            imap.logout()
+        except Exception:  # noqa: BLE001 - logout best-effort
+            pass
+
+    def _connect_and_login(self) -> imaplib.IMAP4_SSL:
+        """Open the SSL connection and authenticate, mapping low-level failures
+        to ImapConnectError (unreachable) / ImapAuthError (bad credentials)."""
+        try:
+            imap = imaplib.IMAP4_SSL(self.host, self.port)
+        except (OSError, imaplib.IMAP4.error) as e:
+            raise ImapConnectError(str(e)) from e
         try:
             imap.login(self.username, self.password)
+        except imaplib.IMAP4.error as e:
+            self._safe_logout(imap)
+            raise ImapAuthError(str(e)) from e
+        except OSError as e:
+            self._safe_logout(imap)
+            raise ImapConnectError(str(e)) from e
+        return imap
+
+    @staticmethod
+    def _safe_logout(imap) -> None:
+        try:
+            imap.logout()
+        except Exception:  # noqa: BLE001 - logout best-effort
+            pass
+
+    def _poll_once(self, since: datetime) -> str | None:
+        imap = self._connect_and_login()
+        try:
             imap.select(self.folder)
             since_day = since.strftime("%d-%b-%Y")
             criteria = build_search_criteria(self.sender, self.subject, since_day)

@@ -33,11 +33,17 @@
         "data": { "code": "Kodas" }
       }
     },
+    "progress": {
+      "wait_code": "Laukiama prisijungimo kodo, kurį ESO siunčia el. paštu. Tai gali užtrukti minutę…"
+    },
     "error": {
       "invalid_auth": "Prisijungti nepavyko. Patikrinkite naudotoją ir slaptažodį.",
       "cannot_connect": "Nepavyko pasiekti ESO. Bandykite vėliau.",
       "invalid_code": "Kodas nepriimtas. Patikrinkite el. paštą ir bandykite dar kartą.",
       "code_expired": "Kodo galiojimo laikas baigėsi. Atsiuntėme naują kodą – įveskite jį žemiau.",
+      "imap_unreachable": "Nepavyko pasiekti IMAP pašto serverio. Patikrinkite serverį/prievadą ir ar Home Assistant turi prie jo tinklo prieigą.",
+      "imap_auth": "IMAP pašto serveris atmetė naudotoją/slaptažodį.",
+      "code_timeout": "Prisijungimo kodas laiku neatkeliavo į pašto dėžutę. Patikrinkite siuntėją/temą/aplanką ir bandykite dar kartą.",
       "unknown": "Netikėta klaida. Patikrinkite žurnalus."
     },
     "abort": {

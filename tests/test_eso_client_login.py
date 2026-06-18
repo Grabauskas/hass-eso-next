@@ -78,6 +78,47 @@ def test_login_auto_submits_code(eso_module, fixtures_path):
     assert client.form_parser.get("form_id") == "eso_consumption_history_form"
 
 
+def test_finish_login_waits_and_submits_after_start_login(eso_module, fixtures_path):
+    """The config flow does start_login() (fast credential POST) and then runs
+    finish_login() in the background: it must wait for the code via the provider
+    and submit it, landing on the consumption page."""
+    mod = eso_module("eso_client")
+    tfa_url = "https://mano.eso.lt/user/login/tfa/1286168/-Gern?destination=/consumption"
+    session = FakeSession([
+        FakeResponse(_tfa_html(fixtures_path), tfa_url),
+        FakeResponse(CONSUMPTION_HTML, "https://mano.eso.lt/consumption"),
+    ])
+    provider = FakeProvider("372449")
+    client = mod.ESOClient("user", "pass", code_provider=provider, session=session)
+
+    assert client.start_login() is True
+    client.finish_login()
+
+    assert session.calls[1]["data"]["code"] == "372449"
+    assert client.is_authenticated() is True
+    assert provider.since is not None  # provider was asked to wait
+    assert client._pending is None  # challenge consumed
+
+
+def test_finish_login_without_provider_raises(eso_module, fixtures_path):
+    mod = eso_module("eso_client")
+    tfa_url = "https://mano.eso.lt/user/login/tfa/1286168/-Gern?destination=/consumption"
+    session = FakeSession([FakeResponse(_tfa_html(fixtures_path), tfa_url)])
+    client = mod.ESOClient("user", "pass", code_provider=None, session=session)
+    client.start_login()
+    with pytest.raises(mod.TfaCodeNeeded):
+        client.finish_login()
+
+
+def test_finish_login_without_pending_raises_session_expired(eso_module):
+    mod = eso_module("eso_client")
+    session = FakeSession([])
+    provider = FakeProvider("372449")
+    client = mod.ESOClient("user", "pass", code_provider=provider, session=session)
+    with pytest.raises(mod.TfaSessionExpired):
+        client.finish_login()
+
+
 def test_login_without_provider_raises_and_stores_pending(eso_module, fixtures_path):
     mod = eso_module("eso_client")
     tfa_url = "https://mano.eso.lt/user/login/tfa/1286168/-Gern?destination=/consumption"

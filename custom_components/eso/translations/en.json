@@ -33,11 +33,17 @@
         "data": { "code": "Code" }
       }
     },
+    "progress": {
+      "wait_code": "Waiting for the login code ESO emails you. This can take a minute…"
+    },
     "error": {
       "invalid_auth": "Login failed. Check your username and password.",
       "cannot_connect": "Could not reach ESO. Try again later.",
       "invalid_code": "That code was not accepted. Check your email and try again.",
       "code_expired": "The code window expired. We emailed a new code — enter it below.",
+      "imap_unreachable": "Could not reach your IMAP mail server. Check the host/port and that Home Assistant has network access to it.",
+      "imap_auth": "Your IMAP mail server rejected the username/password.",
+      "code_timeout": "No login code arrived in your mailbox in time. Check the sender/subject/folder and try again.",
       "unknown": "Unexpected error. Check the logs."
     },
     "abort": {

@@ -57,8 +57,17 @@ class ESOClient:
         self.dataset = {}
         if not self._start_credentials():
             return  # no TFA challenge; already at consumption page
+        self.finish_login()
+
+    def finish_login(self) -> None:
+        """Complete an auto-mode login after start_login(): wait for the emailed
+        code via the configured provider, then submit it. Split out from login()
+        so the UI config flow can run this part as a background task (with a
+        progress indicator) after the fast credential POST."""
         if self.code_provider is None:
             raise TfaCodeNeeded("ESO requires an email code; configure imap or use the eso.start_login service")
+        if not self._pending:
+            raise TfaSessionExpired("No pending ESO login; start the login again")
         code = self.code_provider.wait_for_code(self._pending["requested_at"])
         self._submit_tfa(code)
 
