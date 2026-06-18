@@ -10,6 +10,9 @@ CONF_USERNAME = "username"
 
 DOMAIN = "eso"
 
+# Dispatcher signal fired after each fetch attempt; format with entry_id.
+SIGNAL_UPDATE = "eso_update_{}"
+
 CONF_OBJECTS = "objects"
 CONF_CONSUMED = "consumed"
 CONF_RETURNED = "returned"

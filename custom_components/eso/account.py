@@ -21,6 +21,8 @@ from homeassistant.components.recorder.statistics import (
 )
 from homeassistant.const import UnitOfEnergy
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_CONSUMED,
@@ -32,6 +34,7 @@ from .const import (
     CONF_RETURNED,
     DOMAIN,
     ENERGY_TYPE_MAP,
+    SIGNAL_UPDATE,
 )
 from .statistics_builder import build_cost_rows, build_energy_rows, local_datetime
 
@@ -50,14 +53,30 @@ class EsoAccount:
         self.entry = entry
         self.failures = 0
         self.unsub = None  # scheduler cancel handle (config-entry accounts)
+        self.last_fetch_time = None
+        self.last_fetch_status = None  # "success" | "failed" | None (never run)
+        self.last_fetch_error = None
 
     def notify(self, message: str, title: str) -> None:
         persistent_notification.async_create(
             self.hass, message, title=title, notification_id=NOTIFY_ID
         )
 
+    def _record_outcome(self, status: str, error: str | None = None) -> None:
+        """Record the most recent fetch attempt and notify the entities.
+
+        Stamps last_fetch_time with the attempt's completion time (success or
+        failure). Firing the dispatcher signal is a no-op for the YAML account
+        (no config entry, so no entities)."""
+        self.last_fetch_time = dt_util.now()
+        self.last_fetch_status = status
+        self.last_fetch_error = error
+        if self.entry is not None:
+            async_dispatcher_send(self.hass, SIGNAL_UPDATE.format(self.entry.entry_id))
+
     async def async_fetch_objects(self, now: datetime) -> None:
         any_failed = False
+        first_error = None
         for obj in self.objects:
             try:
                 _LOGGER.info(f"Fetching ESO dataset [{obj[CONF_NAME]}]")
@@ -72,9 +91,13 @@ class EsoAccount:
             except Exception as e:
                 _LOGGER.error(f"Failed to import object {obj[CONF_NAME]}: {e}")
                 any_failed = True
+                if first_error is None:
+                    first_error = str(e)
                 continue
         if any_failed:
+            self._record_outcome("failed", first_error)
             raise RuntimeError("One or more ESO objects failed to import")
+        self._record_outcome("success")
 
     async def handle_failure(self, retry: bool) -> None:
         self.failures += 1
@@ -112,6 +135,13 @@ class EsoAccount:
         try:
             _LOGGER.info("Logging in to ESO (auto)...")
             await self.hass.async_add_executor_job(self.client.login)
+        except Exception as e:
+            _LOGGER.error(f"ESO auto login error: {e}")
+            self._record_outcome("failed", str(e))
+            await self.handle_failure(retry)
+            return
+        try:
+            # async_fetch_objects records its own success/failure outcome.
             await self.async_fetch_objects(now)
         except Exception as e:
             _LOGGER.error(f"ESO auto import error: {e}")
