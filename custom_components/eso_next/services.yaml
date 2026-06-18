@@ -1,0 +1,19 @@
+fetch_now:
+  name: Fetch now
+  description: >-
+    Run the full ESO login and statistics import immediately (auto mode only;
+    requires an imap: config block). Reads the emailed one-time code over IMAP.
+start_login:
+  name: Start login
+  description: Begin ESO login; triggers an emailed one-time code (manual mode).
+submit_tfa_code:
+  name: Submit TFA code
+  description: Submit the one-time code emailed by ESO to complete login.
+  fields:
+    code:
+      name: Code
+      description: The 6-digit code from the ESO email.
+      required: true
+      example: "372449"
+      selector:
+        text:
