@@ -15,37 +15,38 @@ from homeassistant.components.recorder.statistics import (
     async_add_external_statistics,
     statistics_during_period,
 )
-from homeassistant.const import CONF_ID, CONF_NAME, CONF_PASSWORD, CONF_USERNAME, UnitOfEnergy
+from homeassistant.const import UnitOfEnergy
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.util import dt as dt_util
 
+from .const import (
+    CONF_CONSUMED,
+    CONF_COST,
+    CONF_FOLDER,
+    CONF_HOST,
+    CONF_ID,
+    CONF_IMAP,
+    CONF_NAME,
+    CONF_NOTIFY_AFTER_FAILURES,
+    CONF_OBJECTS,
+    CONF_PASSWORD,
+    CONF_PORT,
+    CONF_PRICE_CURRENCY,
+    CONF_PRICE_ENTITY,
+    CONF_RETURNED,
+    CONF_SENDER,
+    CONF_SUBJECT,
+    CONF_USERNAME,
+    DOMAIN,
+    ENERGY_TYPE_MAP,
+)
 from .eso_client import ESOClient, TfaCodeNeeded
 from .imap_client import DEFAULT_SENDER, DEFAULT_SUBJECT, ImapCodeProvider
 from .statistics_builder import build_cost_rows, build_energy_rows, local_datetime
 
 _LOGGER = logging.getLogger(__name__)
-DOMAIN = "eso"
-CONF_OBJECTS = "objects"
-CONF_CONSUMED = "consumed"
-CONF_RETURNED = "returned"
-CONF_COST = "cost"
-CONF_PRICE_ENTITY = "price_entity"
-CONF_PRICE_CURRENCY = "price_currency"
-CONF_IMAP = "imap"
-CONF_HOST = "host"
-CONF_PORT = "port"
-CONF_FOLDER = "folder"
-CONF_SENDER = "sender"
-CONF_SUBJECT = "subject"
-CONF_NOTIFY_AFTER_FAILURES = "notify_after_failures"
-POWER_CONSUMED = "P+"
-POWER_RETURNED = "P-"
-ENERGY_TYPE_MAP = {
-    CONF_CONSUMED: POWER_CONSUMED,
-    CONF_RETURNED: POWER_RETURNED
-}
 OBJECT_SCHEMA = vol.Schema({
     vol.Required(CONF_NAME): cv.string,
     vol.Required(CONF_ID): cv.string,
