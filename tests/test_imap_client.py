@@ -66,3 +66,71 @@ def test_build_search_criteria_escapes_quotes(eso_module):
     crit = mod.build_search_criteria('a"b@x.lt', 'sub "ject"', "01-Jan-2026")
     assert crit[1] == '"a\\"b@x.lt"'
     assert crit[3] == '"sub \\"ject\\""'
+
+
+def test_imap_provider_init_stores_fields(eso_module):
+    mod = eso_module("imap_client")
+    p = mod.ImapCodeProvider("host", 993, "user", "pw", folder="F", sender="s@x", subject="subj")
+    assert (p.host, p.port, p.username, p.password, p.folder, p.sender, p.subject) == (
+        "host", 993, "user", "pw", "F", "s@x", "subj"
+    )
+
+
+def test_to_candidate_parses_real_eml(eso_module, fixtures_path):
+    mod = eso_module("imap_client")
+    raw = (fixtures_path / "tfa_email.eml").read_bytes()
+    cand = mod.ImapCodeProvider._to_candidate(raw)
+    assert cand.date.tzinfo is not None  # date is made tz-aware
+    assert mod.extract_code(cand.body) == "372449"
+
+
+class _FakeIMAP:
+    """Minimal stand-in for imaplib.IMAP4_SSL driven by canned fetch data."""
+
+    def __init__(self, raw=None, search_ids=b"1"):
+        self._raw = raw
+        self._search_ids = search_ids
+
+    def login(self, username, password):
+        return ("OK", [b""])
+
+    def select(self, folder):
+        return ("OK", [b"1"])
+
+    def search(self, charset, *criteria):
+        return ("OK", [self._search_ids])
+
+    def fetch(self, num, spec):
+        return ("OK", [(b"1 (RFC822 {123}", self._raw)])
+
+    def logout(self):
+        return ("BYE", [b""])
+
+
+def test_wait_for_code_returns_code_via_fake_imap(eso_module, fixtures_path, monkeypatch):
+    from datetime import datetime, timezone
+
+    mod = eso_module("imap_client")
+    raw = (fixtures_path / "tfa_email.eml").read_bytes()
+    monkeypatch.setattr(mod.imaplib, "IMAP4_SSL", lambda host, port: _FakeIMAP(raw=raw))
+
+    provider = mod.ImapCodeProvider("h", 993, "u", "pw")
+    # `since` older than the email date so pick_code accepts the message as fresh.
+    since = datetime(2000, 1, 1, tzinfo=timezone.utc)
+    assert provider.wait_for_code(since, timeout=5, poll_interval=1) == "372449"
+
+
+def test_wait_for_code_times_out_when_no_message(eso_module, monkeypatch):
+    from datetime import datetime, timezone
+
+    import pytest
+
+    mod = eso_module("imap_client")
+    # search returns no ids -> _poll_once yields None every time.
+    monkeypatch.setattr(mod.imaplib, "IMAP4_SSL", lambda host, port: _FakeIMAP(search_ids=b""))
+    monkeypatch.setattr(mod.time, "sleep", lambda s: None)
+
+    provider = mod.ImapCodeProvider("h", 993, "u", "pw")
+    since = datetime(2000, 1, 1, tzinfo=timezone.utc)
+    with pytest.raises(mod.TfaTimeout):
+        provider.wait_for_code(since, timeout=0, poll_interval=0)

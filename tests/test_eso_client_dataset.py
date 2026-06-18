@@ -78,3 +78,74 @@ def test_get_dataset_missing_returns_none(eso_module):
     mod = eso_module("eso_client")
     client = mod.ESOClient("u", "p")
     assert client.get_dataset("nope") is None
+
+
+class _FetchResponse:
+    def __init__(self, payload, text=""):
+        self._payload = payload
+        self.text = text  # fetch() logs response.text at debug level
+
+    def raise_for_status(self):
+        pass
+
+    def json(self):
+        return self._payload
+
+
+class _FetchSession:
+    def __init__(self, response=None, exc=None):
+        self._response = response
+        self._exc = exc
+        self.calls = []
+
+    def post(self, url, data=None, headers=None, cookies=None, allow_redirects=True):
+        self.calls.append({"url": url, "data": data})
+        if self._exc is not None:
+            raise self._exc
+        return self._response
+
+
+def _consumption_client(mod, session):
+    client = mod.ESOClient("u", "p", session=session)
+    client.cookies = {"SSESS": "abc"}
+    client.form_parser.set("form_id", "eso_consumption_history_form")
+    client.form_parser.set("form_build_id", "fb")
+    client.form_parser.set("form_token", "tok")
+    return client
+
+
+def test_fetch_happy_path_returns_json(eso_module):
+    mod = eso_module("eso_client")
+    payload = [{"command": "settings", "settings": {}}]
+    session = _FetchSession(response=_FetchResponse(payload))
+    client = _consumption_client(mod, session)
+    result = client.fetch("123", datetime(2026, 6, 17))
+    assert result == payload
+    assert session.calls[0]["data"]["objects[]"] == "123"
+
+
+def test_fetch_request_exception_returns_empty(eso_module):
+    import requests
+
+    mod = eso_module("eso_client")
+    session = _FetchSession(exc=requests.exceptions.RequestException("boom"))
+    client = _consumption_client(mod, session)
+    assert client.fetch("123", datetime(2026, 6, 17)) == {}
+
+
+def test_get_dataset_present_returns_data(eso_module):
+    mod = eso_module("eso_client")
+    client = mod.ESOClient("u", "p")
+    client.dataset["123"] = {"P+": {1.0: 5.0}}
+    assert client.get_dataset("123") == {"P+": {1.0: 5.0}}
+
+
+def test_fetch_dataset_ignores_non_settings_and_empty(eso_module):
+    mod = eso_module("eso_client")
+    client = mod.ESOClient("u", "p")
+    client.fetch = lambda obj, date: [
+        {"command": "insert", "data": "x"},                                  # non-settings
+        {"command": "settings", "settings": {}},                             # key absent
+        {"command": "settings", "settings": {"eso_consumption_history_form": None}},  # falsy
+    ]
+    assert client.fetch_dataset("zzz", datetime(2026, 6, 17)) == {}
