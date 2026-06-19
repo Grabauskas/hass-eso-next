@@ -88,4 +88,8 @@ class EsoStatusSensor(_EsoSensorBase):
 
     @property
     def extra_state_attributes(self):
+        # Only expose the attribute when there is an error, rather than a
+        # perpetual `error: None`.
+        if self._account.last_fetch_error is None:
+            return {}
         return {"error": self._account.last_fetch_error}

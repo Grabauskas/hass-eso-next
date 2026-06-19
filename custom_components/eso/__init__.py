@@ -109,8 +109,27 @@ def _ensure_services(hass: HomeAssistant) -> None:
                 notification_id=NOTIFY_ID,
             )
 
-    async def handle_start_login(call) -> None:
+    def _yaml_account_or_notify():
+        """Return the YAML account, or notify and return None. The start_login /
+        submit_tfa_code services only drive the YAML manual-mode account; a
+        UI-configured account refreshes its code through the reauth flow, so
+        give those users actionable feedback instead of a silent no-op."""
         account = hass.data.get(DOMAIN, {}).get("yaml")
+        if account is None:
+            persistent_notification.async_create(
+                hass,
+                "eso.start_login and eso.submit_tfa_code only drive a "
+                "YAML-configured account. A UI-configured account gets a fresh "
+                "login code through its reauthentication flow "
+                "(Settings → Devices & Services → ESO → Reconfigure/Reauth), "
+                "not these services.",
+                title="ESO services unavailable",
+                notification_id=NOTIFY_ID,
+            )
+        return account
+
+    async def handle_start_login(call) -> None:
+        account = _yaml_account_or_notify()
         if account is None:
             return
         try:
@@ -131,7 +150,7 @@ def _ensure_services(hass: HomeAssistant) -> None:
             persistent_notification.async_dismiss(hass, NOTIFY_ID)
 
     async def handle_submit_tfa_code(call) -> None:
-        account = hass.data.get(DOMAIN, {}).get("yaml")
+        account = _yaml_account_or_notify()
         if account is None:
             return
         code = call.data["code"]
@@ -252,9 +271,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    account = hass.data[DOMAIN].pop(entry.entry_id, None)
-    if account and account.unsub:
-        account.unsub()
+    # Only tear down when the platforms actually unloaded. Popping the account
+    # and cancelling the scheduler on a failed unload would orphan entities that
+    # still reference the account and stop the scheduler for an entry HA still
+    # considers loaded.
+    if unloaded:
+        account = hass.data[DOMAIN].pop(entry.entry_id, None)
+        if account and account.unsub:
+            account.unsub()
     return unloaded
 
 

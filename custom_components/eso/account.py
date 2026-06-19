@@ -4,7 +4,6 @@
 HA-dependent; excluded from unit tests/coverage. Both the YAML path and the UI
 config-entry path build an EsoAccount and call the same methods.
 """
-import asyncio
 import logging
 from datetime import datetime, timedelta
 
@@ -22,6 +21,7 @@ from homeassistant.components.recorder.statistics import (
 from homeassistant.const import UnitOfEnergy
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.helpers.event import async_call_later
 from homeassistant.util import dt as dt_util
 
 from .const import (
@@ -110,14 +110,15 @@ class EsoAccount:
             )
         if not retry:
             _LOGGER.warning("ESO import failed, will retry later")
-            self.hass.loop.call_later(
-                RETRY_DELAY_SECONDS,
-                lambda: asyncio.create_task(
-                    self.async_login_and_fetch(dt_util.now(), retry=True)
-                ),
-            )
+            # async_call_later wraps the retry in a HassJob that HA tracks, so
+            # the scheduled task can't be garbage-collected mid-flight (unlike a
+            # bare asyncio.create_task whose reference we'd have to hold).
+            async_call_later(self.hass, RETRY_DELAY_SECONDS, self._async_retry_fetch)
         else:
             _LOGGER.error("ESO import failed again, postponing to next day")
+
+    async def _async_retry_fetch(self, _now: datetime) -> None:
+        await self.async_login_and_fetch(dt_util.now(), retry=True)
 
     async def async_login_and_fetch(self, now: datetime, retry: bool = False) -> None:
         if self.hass.is_stopping:

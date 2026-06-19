@@ -454,6 +454,19 @@ class EsoObjectSubentryFlow(ConfigSubentryFlow):
             if sub.subentry_type == "object" and sub.subentry_id != exclude_subentry_id
         ]
 
+    def _other_account_object_ids(self) -> list[str]:
+        """Object ids managed by *other* loaded ESO accounts (another UI entry or
+        the YAML account). Colliding ids map to the same statistic ids and
+        corrupt the Energy dashboard's running totals, so reject them across
+        accounts too — _existing_object_ids only sees this entry's own objects."""
+        current_id = self._get_entry().entry_id
+        return [
+            obj.get(CONF_ID, "")
+            for key, account in self.hass.data.get(DOMAIN, {}).items()
+            if key != current_id
+            for obj in account.objects
+        ]
+
     async def async_step_user(self, user_input=None) -> SubentryFlowResult:
         errors: dict = {}
         if user_input is not None:
@@ -462,6 +475,8 @@ class EsoObjectSubentryFlow(ConfigSubentryFlow):
                 errors["base"] = error
             elif object_id_in_use(self._existing_object_ids(), user_input[CONF_ID]):
                 errors["base"] = "duplicate_object"
+            elif object_id_in_use(self._other_account_object_ids(), user_input[CONF_ID]):
+                errors["base"] = "duplicate_object_other_account"
             else:
                 return self.async_create_entry(
                     title=user_input[CONF_NAME], data=user_input
@@ -480,6 +495,8 @@ class EsoObjectSubentryFlow(ConfigSubentryFlow):
                 errors["base"] = error
             elif object_id_in_use(others, user_input[CONF_ID]):
                 errors["base"] = "duplicate_object"
+            elif object_id_in_use(self._other_account_object_ids(), user_input[CONF_ID]):
+                errors["base"] = "duplicate_object_other_account"
             else:
                 return self.async_update_and_abort(
                     self._get_entry(), subentry,

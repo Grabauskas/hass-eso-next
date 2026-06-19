@@ -143,7 +143,8 @@
       "error": {
         "missing_object_name": "Name is required.",
         "missing_object_id": "Object ID is required.",
-        "duplicate_object": "An object with this ID already exists on this account."
+        "duplicate_object": "An object with this ID already exists on this account.",
+        "duplicate_object_other_account": "This object ID is already configured in another ESO account. Each object ID must belong to only one account to avoid corrupting the Energy dashboard totals."
       }
     }
   }
