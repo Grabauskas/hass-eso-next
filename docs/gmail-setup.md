@@ -147,8 +147,13 @@ seconds, and Home Assistant reads it from there.
 
 ## Step 6 — Configure Home Assistant
 
-Add the `imap:` block to your `eso:` configuration in `configuration.yaml`,
-using the values from Step 4:
+The same host / username / app-password values from Step 4 work whether you
+configure the integration in YAML or through the UI. If you set the integration
+up via **Settings → Devices & Services → Add Integration**, enter these values
+in the IMAP fields of the credential dialog instead and skip the YAML below.
+
+To configure in YAML, add the `imap:` block to your `eso:` configuration in
+`configuration.yaml`, using the values from Step 4:
 
 ```yaml
 eso:

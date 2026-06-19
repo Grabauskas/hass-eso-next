@@ -28,16 +28,43 @@ hassfest requires `manifest.json` keys to stay sorted.
 
 ## Architecture
 
-The integration is split into one HA-runtime glue module and three
-pure-logic modules that are unit-testable without Home Assistant installed.
+The integration is split into HA-runtime glue modules (excluded from unit tests
+and coverage — see `pyproject.toml` `omit`; exercised only inside a running HA
+instance) and pure-logic modules that are unit-testable without Home Assistant
+installed.
 
-- `custom_components/eso/__init__.py` — **HA runtime glue**. Defines the
-  voluptuous `CONFIG_SCHEMA` (YAML config under the `eso:` key), registers
-  the `fetch_now` / `start_login` / `submit_tfa_code` services, schedules the
-  daily import via `async_track_time_change`, and converts ESO datasets into
-  `StatisticData` written through `async_add_external_statistics`. This file is
-  **excluded from unit tests and coverage** (see `pyproject.toml` `omit`); it is
-  exercised only inside a running HA instance.
+The same per-account runtime (`EsoAccount`) backs both configuration paths: the
+legacy YAML `eso:` block and UI-created config entries. Both build an
+`EsoAccount` and call the same login/fetch/schedule/statistics methods.
+
+**HA-runtime glue:**
+
+- `custom_components/eso/__init__.py` — defines the voluptuous `CONFIG_SCHEMA`
+  (YAML config under the `eso:` key), registers the `fetch_now` / `start_login`
+  / `submit_tfa_code` services, sets up/unloads/reloads UI config entries, and
+  warns when the same object ID is configured by more than one account. Builds
+  `EsoAccount` instances for both the YAML and config-entry paths.
+- `account.py` — `EsoAccount`: per-account runtime. Drives login, fetch,
+  schedule, failure notification, and converts ESO datasets into `StatisticData`
+  written through `async_add_external_statistics`. Tracks last-fetch
+  time/status/error (surfaced by the sensors) and fires `SIGNAL_UPDATE`.
+- `config_flow.py` — the UI config flow: account setup (`user`) with login
+  validation, native TFA step (`tfa`), reauth (`reauth_confirm` →
+  `reauth_code`), reconfigure (edit password/IMAP), an options flow
+  (`notify_after_failures`), and the object subentry flow (add/edit/remove
+  metering points). Delegates pure shaping to `config_model.py`.
+- `entity.py` / `button.py` / `sensor.py` — per-entry device entities:
+  `EsoBaseEntity` (shared device info), the *Fetch now* button, and the
+  *Last fetch* + *Status* sensors.
+**Pure logic (HA-free, unit-tested):**
+
+- `const.py` — shared constants (config keys, `DOMAIN`, `SIGNAL_UPDATE`,
+  `ENERGY_TYPE_MAP`, defaults). Imported by both glue and pure modules and by
+  tests.
+- `config_model.py` — pure helpers turning raw config/form dicts into runtime
+  shapes: `build_object`, `imap_provider_kwargs`, `imap_block` (UI form →
+  stored IMAP block, `None` when the host is blank), `object_id_in_use`, and
+  `duplicate_object_ids` (cross-account statistic-ID collision detection).
 - `eso_client.py` — `ESOClient`: the scraping/login state machine. Posts
   credentials, detects the TFA challenge form, submits the emailed code, then
   fetches the Drupal AJAX consumption endpoint and parses the JSON into

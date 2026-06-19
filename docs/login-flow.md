@@ -108,6 +108,14 @@ The password defaults to the stored one, so an account that only needs a fresh
 code can submit `reauth_confirm` unchanged; a changed ESO password can be fixed
 here without deleting the entry.
 
+### Reconfigure — switching modes
+
+The entry menu's **Reconfigure** step (`step "reconfigure"`) edits the stored ESO
+password and IMAP settings of an existing entry. Filling the IMAP host keeps the
+account in auto mode; **clearing the IMAP host removes the stored IMAP block**,
+switching the account to manual/reauth mode (the next scheduled login then
+triggers the reauth flow above). The username is fixed — it identifies the entry.
+
 The abort key `reauth_successful` is shown only when the post-login fetch
 actually succeeded. `reauth_failed` is shown if the login or fetch raises during
 reauth. On the `reauth_code` step, a rejected code shows `invalid_code` and an

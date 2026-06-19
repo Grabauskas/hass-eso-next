@@ -163,7 +163,11 @@ required.
    then enter that code. The entry's authenticated session is used to fetch and
    refresh data immediately. Because the password is editable here, a changed
    ESO password can be fixed without deleting and re-adding the entry.
-7. **`notify_after_failures`** can be changed any time from the entry's
+7. **Reconfigure:** to change the ESO password or the IMAP settings of an
+   existing entry, open the entry's menu (⋮) → **Reconfigure**. The username is
+   fixed (it identifies the entry). Clearing the IMAP host switches the account
+   to manual code entry (reauth); leaving it filled keeps auto mode.
+8. **`notify_after_failures`** can be changed any time from the entry's
    **Configure** (options) dialog.
 
 > **YAML still works unchanged.** If you already have an `eso:` block in
