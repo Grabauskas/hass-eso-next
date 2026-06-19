@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-06-19
+
+### Fixed
+- **Cumulative statistics reset after import gaps.** `get_previous_sum` only
+  looked back one hour and read the first row of that window, so any fetch gap
+  longer than an hour (network outage, login/TFA failure) found no previous
+  statistics, seeded the running `sum` from `0`, and corrupted the long-term
+  energy/cost totals on the Energy dashboard from that point on. The lookback
+  now spans 60 days and takes the most recent point before the import, with
+  null-safe value extraction.
+
 ## [0.2.0] - 2026-06-19
 
 Adds full UI configuration: the integration can now be installed, authenticated
