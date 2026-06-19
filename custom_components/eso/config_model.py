@@ -78,3 +78,22 @@ def object_id_in_use(existing_ids, new_id: str) -> bool:
     """
     target = (new_id or "").strip()
     return any(target == (existing or "").strip() for existing in existing_ids)
+
+
+def duplicate_object_ids(existing_ids, new_ids) -> list[str]:
+    """Return the (whitespace-trimmed) object ids in new_ids that also appear in
+    existing_ids, in first-seen order without repeats.
+
+    Object ids map directly to statistic ids (``eso:energy_*_{id}``). When the
+    same id is configured by more than one account — e.g. a YAML ``eso:`` block
+    and a UI entry, or two UI entries — both accounts write the same statistic
+    ids with independently-seeded cumulative sums, corrupting the Energy
+    dashboard history. Used at setup to warn about such cross-account clashes.
+    """
+    existing = {(i or "").strip() for i in existing_ids if (i or "").strip()}
+    found: list[str] = []
+    for nid in new_ids:
+        target = (nid or "").strip()
+        if target and target in existing and target not in found:
+            found.append(target)
+    return found

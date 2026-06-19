@@ -157,9 +157,10 @@ def test_check_connection_bad_login_raises_auth_error(eso_module, monkeypatch):
         provider.check_connection()
 
 
-def test_wait_for_code_wraps_connect_error(eso_module, monkeypatch):
-    """A network failure mid-wait surfaces as ImapConnectError, not a raw OSError,
-    so callers can show a clear 'mail server unreachable' message."""
+def test_wait_for_code_retries_connect_error_until_deadline(eso_module, monkeypatch):
+    """A network blip mid-wait must not abort the (unattended) login: connect
+    errors are retried until the deadline, then surface as TfaTimeout rather than
+    failing the whole login on the first hiccup."""
     import pytest
 
     mod = eso_module("imap_client")
@@ -168,10 +169,11 @@ def test_wait_for_code_wraps_connect_error(eso_module, monkeypatch):
         raise OSError(101, "Network unreachable")
 
     monkeypatch.setattr(mod.imaplib, "IMAP4_SSL", _boom)
+    monkeypatch.setattr(mod.time, "sleep", lambda s: None)
     provider = mod.ImapCodeProvider("h", 993, "u", "pw")
     since = datetime(2000, 1, 1, tzinfo=timezone.utc)
-    with pytest.raises(mod.ImapConnectError):
-        provider.wait_for_code(since, timeout=5, poll_interval=1)
+    with pytest.raises(mod.TfaTimeout):
+        provider.wait_for_code(since, timeout=0, poll_interval=0)
 
 
 def test_wait_for_code_times_out_when_no_message(eso_module, monkeypatch):

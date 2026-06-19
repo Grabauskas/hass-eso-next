@@ -331,8 +331,9 @@ class EsoConfigFlow(ConfigFlow, domain=DOMAIN):
         least one; further objects are added later via 'Add ESO object'."""
         errors: dict = {}
         if user_input is not None:
-            if not (user_input.get(CONF_ID) or "").strip():
-                errors["base"] = "missing_object_id"
+            error = _object_form_error(user_input)
+            if error:
+                errors["base"] = error
             else:
                 return self.async_create_entry(
                     title=self._data[CONF_USERNAME],
@@ -376,6 +377,18 @@ class EsoConfigFlow(ConfigFlow, domain=DOMAIN):
             data_schema=_reconfigure_schema(entry.data),
             errors=errors,
         )
+
+
+def _object_form_error(user_input: dict) -> str | None:
+    """Validate the required free-text fields of an object form. Returns the
+    error key to show, or None if name and id are both non-blank. vol.Required
+    accepts whitespace-only strings, which would yield a blank entry title and a
+    malformed statistic id, so reject them here."""
+    if not (user_input.get(CONF_NAME) or "").strip():
+        return "missing_object_name"
+    if not (user_input.get(CONF_ID) or "").strip():
+        return "missing_object_id"
+    return None
 
 
 def _object_schema(defaults: dict | None = None) -> vol.Schema:
@@ -428,7 +441,10 @@ class EsoObjectSubentryFlow(ConfigSubentryFlow):
     async def async_step_user(self, user_input=None) -> SubentryFlowResult:
         errors: dict = {}
         if user_input is not None:
-            if object_id_in_use(self._existing_object_ids(), user_input[CONF_ID]):
+            error = _object_form_error(user_input)
+            if error:
+                errors["base"] = error
+            elif object_id_in_use(self._existing_object_ids(), user_input[CONF_ID]):
                 errors["base"] = "duplicate_object"
             else:
                 return self.async_create_entry(
@@ -443,7 +459,10 @@ class EsoObjectSubentryFlow(ConfigSubentryFlow):
         errors: dict = {}
         if user_input is not None:
             others = self._existing_object_ids(exclude_subentry_id=subentry.subentry_id)
-            if object_id_in_use(others, user_input[CONF_ID]):
+            error = _object_form_error(user_input)
+            if error:
+                errors["base"] = error
+            elif object_id_in_use(others, user_input[CONF_ID]):
                 errors["base"] = "duplicate_object"
             else:
                 return self.async_update_and_abort(

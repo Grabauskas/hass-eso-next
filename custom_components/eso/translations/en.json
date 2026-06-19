@@ -86,13 +86,15 @@
       "imap_unreachable": "Could not reach your IMAP mail server. Check the host/port and that Home Assistant has network access to it.",
       "imap_auth": "Your IMAP mail server rejected the username/password.",
       "code_timeout": "No login code arrived in your mailbox in time. Check the sender/subject/folder and try again.",
+      "missing_object_name": "Name is required.",
       "missing_object_id": "Object ID is required.",
       "unknown": "Unexpected error. Check the logs."
     },
     "abort": {
       "already_configured": "This ESO account is already set up.",
       "reauth_failed": "Re-authentication failed. Check the logs and try again.",
-      "reauth_successful": "Re-authentication was successful and data was refreshed."
+      "reauth_successful": "Re-authentication was successful and data was refreshed.",
+      "reconfigure_successful": "ESO settings were updated."
     }
   },
   "options": {
@@ -136,6 +138,8 @@
         }
       },
       "error": {
+        "missing_object_name": "Name is required.",
+        "missing_object_id": "Object ID is required.",
         "duplicate_object": "An object with this ID already exists on this account."
       }
     }

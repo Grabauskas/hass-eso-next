@@ -91,7 +91,14 @@ class ImapCodeProvider:
     def wait_for_code(self, since: datetime, timeout: int = 120, poll_interval: int = 5) -> str:
         deadline = datetime.now(timezone.utc) + timedelta(seconds=timeout)
         while True:
-            code = self._poll_once(since)
+            try:
+                code = self._poll_once(since)
+            except ImapConnectError as e:
+                # A transient network/TLS blip mid-poll must not abort the whole
+                # (unattended) login — keep retrying until the deadline. Auth
+                # errors are not retried: they won't fix themselves.
+                _LOGGER.warning("IMAP poll failed transiently, will retry: %s", e)
+                code = None
             if code is not None:
                 return code
             if datetime.now(timezone.utc) >= deadline:

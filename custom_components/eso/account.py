@@ -65,14 +65,15 @@ class EsoAccount:
     def _record_outcome(self, status: str, error: str | None = None) -> None:
         """Record the most recent fetch attempt and notify the entities.
 
-        Stamps last_fetch_time with the attempt's completion time (success or
-        failure). Firing the dispatcher signal is a no-op for the YAML account
-        (no config entry, so no entities)."""
+        Only config-entry accounts expose fetch-status entities; the YAML
+        account has none, so skip the bookkeeping (and the dispatcher signal)
+        entirely there rather than stamping state nothing consumes."""
+        if self.entry is None:
+            return
         self.last_fetch_time = dt_util.now()
         self.last_fetch_status = status
         self.last_fetch_error = error
-        if self.entry is not None:
-            async_dispatcher_send(self.hass, SIGNAL_UPDATE.format(self.entry.entry_id))
+        async_dispatcher_send(self.hass, SIGNAL_UPDATE.format(self.entry.entry_id))
 
     async def async_fetch_objects(self, now: datetime) -> None:
         any_failed = False
@@ -112,7 +113,7 @@ class EsoAccount:
             self.hass.loop.call_later(
                 RETRY_DELAY_SECONDS,
                 lambda: asyncio.create_task(
-                    self.async_login_and_fetch(datetime.now(), retry=True)
+                    self.async_login_and_fetch(dt_util.now(), retry=True)
                 ),
             )
         else:

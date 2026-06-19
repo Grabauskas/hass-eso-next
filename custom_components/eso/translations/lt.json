@@ -86,13 +86,15 @@
       "imap_unreachable": "Nepavyko pasiekti IMAP pašto serverio. Patikrinkite serverį/prievadą ir ar Home Assistant turi prie jo tinklo prieigą.",
       "imap_auth": "IMAP pašto serveris atmetė naudotoją/slaptažodį.",
       "code_timeout": "Prisijungimo kodas laiku neatkeliavo į pašto dėžutę. Patikrinkite siuntėją/temą/aplanką ir bandykite dar kartą.",
+      "missing_object_name": "Pavadinimas privalomas.",
       "missing_object_id": "Objekto ID privalomas.",
       "unknown": "Netikėta klaida. Patikrinkite žurnalus."
     },
     "abort": {
       "already_configured": "Ši ESO paskyra jau sukonfigūruota.",
       "reauth_failed": "Pakartotinis prisijungimas nepavyko. Patikrinkite žurnalus.",
-      "reauth_successful": "Pakartotinis prisijungimas pavyko ir duomenys atnaujinti."
+      "reauth_successful": "Pakartotinis prisijungimas pavyko ir duomenys atnaujinti.",
+      "reconfigure_successful": "ESO nustatymai atnaujinti."
     }
   },
   "options": {
@@ -136,6 +138,8 @@
         }
       },
       "error": {
+        "missing_object_name": "Pavadinimas privalomas.",
+        "missing_object_id": "Objekto ID privalomas.",
         "duplicate_object": "Objektas su šiuo ID šioje paskyroje jau yra."
       }
     }

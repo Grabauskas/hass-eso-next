@@ -12,7 +12,7 @@ from homeassistant.helpers.typing import ConfigType
 from homeassistant.util import dt as dt_util
 
 from .account import NOTIFY_ID, EsoAccount
-from .config_model import build_object, imap_provider_kwargs
+from .config_model import build_object, duplicate_object_ids, imap_provider_kwargs
 from .const import (
     CONF_CONSUMED,
     CONF_FOLDER,
@@ -33,7 +33,7 @@ from .const import (
     DEFAULT_NOTIFY_AFTER_FAILURES,
     DOMAIN,
 )
-from .eso_client import ESOClient, TfaCodeNeeded
+from .eso_client import ESOClient, TfaCodeNeeded, TfaSessionExpired
 from .imap_client import DEFAULT_SENDER, DEFAULT_SUBJECT, ImapCodeProvider
 
 _LOGGER = logging.getLogger(__name__)
@@ -64,6 +64,28 @@ CONFIG_SCHEMA = vol.Schema({
         vol.Required(CONF_OBJECTS): cv.ensure_list(OBJECT_SCHEMA),
     })
 }, extra=vol.ALLOW_EXTRA)
+
+
+def _warn_on_duplicate_object_ids(hass: HomeAssistant, new_objects: list[dict]) -> None:
+    """Warn if any object id in new_objects is already managed by another loaded
+    ESO account (YAML or UI). Colliding ids map to the same statistic ids and
+    corrupt the Energy dashboard's running sums, so each id must live in exactly
+    one account. Catches YAML-vs-UI and entry-vs-entry clashes that the per-entry
+    subentry guard cannot see."""
+    existing_ids = [
+        obj[CONF_ID]
+        for account in hass.data.get(DOMAIN, {}).values()
+        for obj in account.objects
+    ]
+    dupes = duplicate_object_ids(existing_ids, [obj[CONF_ID] for obj in new_objects])
+    if dupes:
+        _LOGGER.warning(
+            "ESO object id(s) %s are configured in more than one account "
+            "(YAML and/or UI). They map to the same statistic ids and will "
+            "corrupt the Energy dashboard's running totals — configure each "
+            "object id in only one place.",
+            ", ".join(dupes),
+        )
 
 
 def _ensure_services(hass: HomeAssistant) -> None:
@@ -115,6 +137,17 @@ def _ensure_services(hass: HomeAssistant) -> None:
         code = call.data["code"]
         try:
             await hass.async_add_executor_job(account.client.submit_code, code)
+        except TfaSessionExpired as e:
+            # The login window lapsed (or no challenge is pending): a fresh code
+            # is needed, not a retry of this one. Catch before TfaCodeNeeded,
+            # which it subclasses, so the guidance is actionable.
+            _LOGGER.error(f"ESO submit_tfa_code: session expired: {e}")
+            account.notify(
+                "ESO login window expired. Call eso.start_login again to get a "
+                "fresh code, then eso.submit_tfa_code with it.",
+                "ESO login expired",
+            )
+            return
         except TfaCodeNeeded as e:
             _LOGGER.error(f"ESO submit_tfa_code rejected: {e}")
             account.notify(f"ESO code rejected: {e}", "ESO code error")
@@ -157,6 +190,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         notify_after_failures=conf[CONF_NOTIFY_AFTER_FAILURES],
         entry=None,
     )
+    _warn_on_duplicate_object_ids(hass, account.objects)
     hass.data[DOMAIN]["yaml"] = account
 
     async def async_manual_reminder(now: datetime) -> None:
@@ -203,6 +237,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         ),
         entry=entry,
     )
+    _warn_on_duplicate_object_ids(hass, account.objects)
     hass.data[DOMAIN][entry.entry_id] = account
 
     _ensure_services(hass)

@@ -168,7 +168,11 @@ required.
 
 > **YAML still works unchanged.** If you already have an `eso:` block in
 > `configuration.yaml`, it continues to function. UI-configured entries and YAML
-> entries can coexist.
+> entries can coexist **as long as they manage different object IDs.** Object IDs
+> map directly to statistic IDs (`eso:energy_*_{id}`); configuring the same object
+> ID in both YAML and the UI (or in two UI entries) makes both accounts write the
+> same statistics with independent running totals, corrupting the Energy
+> dashboard history. The integration logs a warning if it detects this.
 
 ## Auto mode vs manual mode
 

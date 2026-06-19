@@ -91,3 +91,19 @@ def test_object_id_in_use_ignores_surrounding_whitespace(eso_module):
 def test_object_id_in_use_false_for_new_id(eso_module):
     cm = eso_module("config_model")
     assert cm.object_id_in_use(["111", "222"], "333") is False
+
+
+def test_duplicate_object_ids_returns_overlap(eso_module):
+    cm = eso_module("config_model")
+    assert cm.duplicate_object_ids(["111", "222"], ["222", "333"]) == ["222"]
+
+
+def test_duplicate_object_ids_trims_and_dedups(eso_module):
+    cm = eso_module("config_model")
+    # Whitespace-insensitive match, and each clashing id reported once.
+    assert cm.duplicate_object_ids(["111"], [" 111 ", "111", "  "]) == ["111"]
+
+
+def test_duplicate_object_ids_empty_when_disjoint(eso_module):
+    cm = eso_module("config_model")
+    assert cm.duplicate_object_ids(["111", "222"], ["333"]) == []
