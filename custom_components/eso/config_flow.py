@@ -399,7 +399,13 @@ def _object_schema(defaults: dict | None = None) -> vol.Schema:
             vol.Required(CONF_ID, default=d.get(CONF_ID, "")): str,
             vol.Required(CONF_CONSUMED, default=d.get(CONF_CONSUMED, True)): bool,
             vol.Required(CONF_RETURNED, default=d.get(CONF_RETURNED, False)): bool,
-            vol.Optional(CONF_PRICE_ENTITY, default=d.get(CONF_PRICE_ENTITY, "")): str,
+            # suggested_value (not default) so clearing the price entity on an
+            # existing object actually removes it; a default would be re-applied
+            # when the frontend omits the emptied field.
+            vol.Optional(
+                CONF_PRICE_ENTITY,
+                description={"suggested_value": d.get(CONF_PRICE_ENTITY, "")},
+            ): str,
             vol.Required(
                 CONF_PRICE_CURRENCY,
                 default=d.get(CONF_PRICE_CURRENCY, DEFAULT_PRICE_CURRENCY),
@@ -412,18 +418,28 @@ def _reconfigure_schema(data: dict) -> vol.Schema:
     """Schema for the reconfigure step, pre-filled from the stored entry data.
 
     Mirrors the IMAP field names of USER_SCHEMA so imap_block() can rebuild the
-    stored block. The username is omitted (it is the entry identity)."""
+    stored block. The username is omitted (it is the entry identity).
+
+    The IMAP fields pre-fill via ``suggested_value`` rather than ``default``:
+    clearing the host must actually drop the field so IMAP can be removed. A
+    ``default`` would be re-applied by voluptuous when the frontend omits the
+    emptied field, making the IMAP block impossible to clear (the old value
+    would silently come back)."""
     imap = data.get(CONF_IMAP) or {}
+
+    def _suggest(key, value):
+        return vol.Optional(key, description={"suggested_value": value})
+
     return vol.Schema(
         {
             vol.Required(CONF_PASSWORD, default=data[CONF_PASSWORD]): str,
-            vol.Optional(CONF_HOST, default=imap.get(CONF_HOST, "")): str,
-            vol.Optional(CONF_PORT, default=imap.get(CONF_PORT, DEFAULT_PORT)): int,
-            vol.Optional(CONF_IMAP_USERNAME, default=imap.get(CONF_USERNAME, "")): str,
-            vol.Optional(CONF_IMAP_PASSWORD, default=imap.get(CONF_PASSWORD, "")): str,
-            vol.Optional(CONF_FOLDER, default=imap.get(CONF_FOLDER, DEFAULT_FOLDER)): str,
-            vol.Optional(CONF_SENDER, default=imap.get(CONF_SENDER, DEFAULT_SENDER)): str,
-            vol.Optional(CONF_SUBJECT, default=imap.get(CONF_SUBJECT, DEFAULT_SUBJECT)): str,
+            _suggest(CONF_HOST, imap.get(CONF_HOST, "")): str,
+            _suggest(CONF_PORT, imap.get(CONF_PORT, DEFAULT_PORT)): int,
+            _suggest(CONF_IMAP_USERNAME, imap.get(CONF_USERNAME, "")): str,
+            _suggest(CONF_IMAP_PASSWORD, imap.get(CONF_PASSWORD, "")): str,
+            _suggest(CONF_FOLDER, imap.get(CONF_FOLDER, DEFAULT_FOLDER)): str,
+            _suggest(CONF_SENDER, imap.get(CONF_SENDER, DEFAULT_SENDER)): str,
+            _suggest(CONF_SUBJECT, imap.get(CONF_SUBJECT, DEFAULT_SUBJECT)): str,
         }
     )
 
