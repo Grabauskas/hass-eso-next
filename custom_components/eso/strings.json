@@ -72,6 +72,9 @@
           "folder": "IMAP folder",
           "sender": "Code email sender",
           "subject": "Code email subject"
+        },
+        "data_description": {
+          "host": "Clear this field to turn off IMAP and switch to manual code entry. Clearing the username/password alone does not disable IMAP — they just fall back to your ESO credentials."
         }
       }
     },

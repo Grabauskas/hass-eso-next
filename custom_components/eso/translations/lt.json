@@ -72,6 +72,9 @@
           "folder": "IMAP aplankas",
           "sender": "Kodo laiško siuntėjas",
           "subject": "Kodo laiško tema"
+        },
+        "data_description": {
+          "host": "Išvalykite šį lauką, kad išjungtumėte IMAP ir įvedinėtumėte kodą rankiniu būdu. Vien naudotojo vardo ar slaptažodžio išvalymas IMAP neišjungia — tada naudojami ESO prisijungimo duomenys."
         }
       }
     },
