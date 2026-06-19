@@ -1,0 +1,151 @@
+{
+  "entity": {
+    "button": {
+      "fetch": { "name": "Atnaujinti dabar" }
+    },
+    "sensor": {
+      "last_fetch": { "name": "Paskutinis atnaujinimas" },
+      "status": {
+        "name": "Paskutinio atnaujinimo būsena",
+        "state": {
+          "success": "Pavyko",
+          "failed": "Nepavyko",
+          "unknown": "Nežinoma"
+        }
+      }
+    }
+  },
+  "config": {
+    "step": {
+      "user": {
+        "title": "ESO paskyra",
+        "description": "Įveskite savo mano.eso.lt prisijungimo duomenis. Palikite IMAP serverį tuščią, jei kodą norėsite įvesti rankiniu būdu.",
+        "data": {
+          "username": "ESO naudotojas",
+          "password": "ESO slaptažodis",
+          "notify_after_failures": "Pranešti po N nesėkmių",
+          "host": "IMAP serveris (nebūtina)",
+          "port": "IMAP prievadas",
+          "imap_username": "IMAP naudotojas (numatytasis – ESO naudotojas)",
+          "imap_password": "IMAP slaptažodis (numatytasis – ESO slaptažodis)",
+          "folder": "IMAP aplankas",
+          "sender": "Kodo laiško siuntėjas",
+          "subject": "Kodo laiško tema"
+        }
+      },
+      "tfa": {
+        "title": "Įveskite ESO kodą",
+        "description": "Įveskite vienkartinį kodą, kurį ESO atsiuntė el. paštu.",
+        "data": { "code": "Kodas" }
+      },
+      "reauth_confirm": {
+        "title": "Pakartotinis ESO prisijungimas",
+        "description": "Patvirtinkite ESO slaptažodį (pakeiskite, jei pasikeitė). ESO atsiųs naują prisijungimo kodą.",
+        "data": { "password": "ESO slaptažodis" }
+      },
+      "reauth_code": {
+        "title": "Iš naujo įveskite ESO kodą",
+        "description": "ESO atsiuntė naują prisijungimo kodą. Įveskite jį, kad atnaujintumėte prieigą.",
+        "data": { "code": "Kodas" }
+      },
+      "object": {
+        "title": "Pridėti ESO objektą",
+        "description": "Pridėkite matavimo tašką, kurio duomenis importuoti. Daugiau galėsite pridėti vėliau iš integracijos meniu.",
+        "data": {
+          "name": "Pavadinimas",
+          "id": "Objekto ID",
+          "consumed": "Importuoti suvartotą energiją",
+          "returned": "Importuoti grąžintą energiją",
+          "price_entity": "Kainos objektas (nebūtina)",
+          "price_currency": "Kainos valiuta"
+        }
+      },
+      "reconfigure": {
+        "title": "Perkonfigūruoti ESO",
+        "description": "Pakeiskite ESO slaptažodį ir IMAP nustatymus. Palikite IMAP serverį tuščią, jei kodą norėsite įvesti rankiniu būdu.",
+        "data": {
+          "password": "ESO slaptažodis",
+          "host": "IMAP serveris (nebūtina)",
+          "port": "IMAP prievadas",
+          "imap_username": "IMAP naudotojas (numatytasis – ESO naudotojas)",
+          "imap_password": "IMAP slaptažodis (numatytasis – ESO slaptažodis)",
+          "folder": "IMAP aplankas",
+          "sender": "Kodo laiško siuntėjas",
+          "subject": "Kodo laiško tema"
+        },
+        "data_description": {
+          "host": "Išvalykite šį lauką, kad išjungtumėte IMAP ir įvedinėtumėte kodą rankiniu būdu. Vien naudotojo vardo ar slaptažodžio išvalymas IMAP neišjungia — tada naudojami ESO prisijungimo duomenys."
+        }
+      }
+    },
+    "progress": {
+      "wait_code": "Laukiama prisijungimo kodo, kurį ESO siunčia el. paštu. Tai gali užtrukti minutę…"
+    },
+    "error": {
+      "invalid_auth": "Prisijungti nepavyko. Patikrinkite naudotoją ir slaptažodį.",
+      "cannot_connect": "Nepavyko pasiekti ESO. Bandykite vėliau.",
+      "invalid_code": "Kodas nepriimtas. Patikrinkite el. paštą ir bandykite dar kartą.",
+      "code_expired": "Kodo galiojimo laikas baigėsi. Atsiuntėme naują kodą – įveskite jį žemiau.",
+      "imap_unreachable": "Nepavyko pasiekti IMAP pašto serverio. Patikrinkite serverį/prievadą ir ar Home Assistant turi prie jo tinklo prieigą.",
+      "imap_auth": "IMAP pašto serveris atmetė naudotoją/slaptažodį.",
+      "code_timeout": "Prisijungimo kodas laiku neatkeliavo į pašto dėžutę. Patikrinkite siuntėją/temą/aplanką ir bandykite dar kartą.",
+      "missing_object_name": "Pavadinimas privalomas.",
+      "missing_object_id": "Objekto ID privalomas.",
+      "unknown": "Netikėta klaida. Patikrinkite žurnalus."
+    },
+    "abort": {
+      "already_configured": "Ši ESO paskyra jau sukonfigūruota.",
+      "reauth_failed": "Pakartotinis prisijungimas nepavyko. Patikrinkite žurnalus.",
+      "reauth_successful": "Pakartotinis prisijungimas pavyko ir duomenys atnaujinti.",
+      "reconfigure_successful": "ESO nustatymai atnaujinti."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "ESO nustatymai",
+        "data": { "notify_after_failures": "Pranešti po N nesėkmių" }
+      }
+    }
+  },
+  "config_subentries": {
+    "object": {
+      "title": "ESO objektas",
+      "entry_type": "ESO objektas",
+      "initiate_flow": {
+        "user": "Pridėti ESO objektą",
+        "reconfigure": "Redaguoti ESO objektą"
+      },
+      "step": {
+        "user": {
+          "title": "Pridėti ESO objektą",
+          "data": {
+            "name": "Pavadinimas",
+            "id": "Objekto ID",
+            "consumed": "Importuoti suvartotą energiją",
+            "returned": "Importuoti grąžintą energiją",
+            "price_entity": "Kainos objektas (nebūtina)",
+            "price_currency": "Kainos valiuta"
+          }
+        },
+        "reconfigure": {
+          "title": "Redaguoti ESO objektą",
+          "data": {
+            "name": "Pavadinimas",
+            "id": "Objekto ID",
+            "consumed": "Importuoti suvartotą energiją",
+            "returned": "Importuoti grąžintą energiją",
+            "price_entity": "Kainos objektas (nebūtina)",
+            "price_currency": "Kainos valiuta"
+          }
+        }
+      },
+      "error": {
+        "missing_object_name": "Pavadinimas privalomas.",
+        "missing_object_id": "Objekto ID privalomas.",
+        "duplicate_object": "Objektas su šiuo ID šioje paskyroje jau yra.",
+        "duplicate_object_other_account": "Šis objekto ID jau sukonfigūruotas kitoje ESO paskyroje. Kiekvienas objekto ID turi priklausyti tik vienai paskyrai, kad nebūtų sugadinti energijos suvestinės skaičiavimai."
+      }
+    }
+  }
+}

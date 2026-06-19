@@ -1,51 +1,43 @@
-import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 from homeassistant.components import persistent_notification
-from homeassistant.components.recorder import get_instance
-from homeassistant.components.recorder.models import (
-    StatisticData,
-    StatisticMeanType,
-    StatisticMetaData,
-)
-from homeassistant.components.recorder.statistics import (
-    async_add_external_statistics,
-    statistics_during_period,
-)
-from homeassistant.const import CONF_ID, CONF_NAME, CONF_PASSWORD, CONF_USERNAME, UnitOfEnergy
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.util import dt as dt_util
 
-from .eso_client import ESOClient, TfaCodeNeeded
+from .account import NOTIFY_ID, EsoAccount
+from .config_model import build_object, duplicate_object_ids, imap_provider_kwargs
+from .const import (
+    CONF_CONSUMED,
+    CONF_FOLDER,
+    CONF_HOST,
+    CONF_ID,
+    CONF_IMAP,
+    CONF_NAME,
+    CONF_NOTIFY_AFTER_FAILURES,
+    CONF_OBJECTS,
+    CONF_PASSWORD,
+    CONF_PORT,
+    CONF_PRICE_CURRENCY,
+    CONF_PRICE_ENTITY,
+    CONF_RETURNED,
+    CONF_SENDER,
+    CONF_SUBJECT,
+    CONF_USERNAME,
+    DEFAULT_NOTIFY_AFTER_FAILURES,
+    DOMAIN,
+)
+from .eso_client import ESOClient, TfaCodeNeeded, TfaSessionExpired
 from .imap_client import DEFAULT_SENDER, DEFAULT_SUBJECT, ImapCodeProvider
-from .statistics_builder import build_cost_rows, build_energy_rows, local_datetime
 
 _LOGGER = logging.getLogger(__name__)
-DOMAIN = "eso"
-CONF_OBJECTS = "objects"
-CONF_CONSUMED = "consumed"
-CONF_RETURNED = "returned"
-CONF_COST = "cost"
-CONF_PRICE_ENTITY = "price_entity"
-CONF_PRICE_CURRENCY = "price_currency"
-CONF_IMAP = "imap"
-CONF_HOST = "host"
-CONF_PORT = "port"
-CONF_FOLDER = "folder"
-CONF_SENDER = "sender"
-CONF_SUBJECT = "subject"
-CONF_NOTIFY_AFTER_FAILURES = "notify_after_failures"
-POWER_CONSUMED = "P+"
-POWER_RETURNED = "P-"
-ENERGY_TYPE_MAP = {
-    CONF_CONSUMED: POWER_CONSUMED,
-    CONF_RETURNED: POWER_RETURNED
-}
+PLATFORMS = [Platform.BUTTON, Platform.SENSOR]
 OBJECT_SCHEMA = vol.Schema({
     vol.Required(CONF_NAME): cv.string,
     vol.Required(CONF_ID): cv.string,
@@ -73,257 +65,222 @@ CONFIG_SCHEMA = vol.Schema({
     })
 }, extra=vol.ALLOW_EXTRA)
 
-RETRY_DELAY_SECONDS = 3 * 3600  # 3 valandų pauzė tarp retry
 
-async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    if DOMAIN not in config:
-        return True
-    hass.data.setdefault(DOMAIN, config[DOMAIN])
-    conf = config[DOMAIN]
-    code_provider = None
-    if CONF_IMAP in conf:
-        imap_conf = conf[CONF_IMAP]
-        code_provider = ImapCodeProvider(
-            host=imap_conf[CONF_HOST],
-            port=imap_conf[CONF_PORT],
-            username=imap_conf[CONF_USERNAME],
-            password=imap_conf[CONF_PASSWORD],
-            folder=imap_conf[CONF_FOLDER],
-            sender=imap_conf[CONF_SENDER],
-            subject=imap_conf[CONF_SUBJECT],
+def _warn_on_duplicate_object_ids(hass: HomeAssistant, new_objects: list[dict]) -> None:
+    """Warn if any object id in new_objects is already managed by another loaded
+    ESO account (YAML or UI). Colliding ids map to the same statistic ids and
+    corrupt the Energy dashboard's running sums, so each id must live in exactly
+    one account. Catches YAML-vs-UI and entry-vs-entry clashes that the per-entry
+    subentry guard cannot see."""
+    existing_ids = [
+        obj[CONF_ID]
+        for account in hass.data.get(DOMAIN, {}).values()
+        for obj in account.objects
+    ]
+    dupes = duplicate_object_ids(existing_ids, [obj[CONF_ID] for obj in new_objects])
+    if dupes:
+        _LOGGER.warning(
+            "ESO object id(s) %s are configured in more than one account "
+            "(YAML and/or UI). They map to the same statistic ids and will "
+            "corrupt the Energy dashboard's running totals — configure each "
+            "object id in only one place.",
+            ", ".join(dupes),
         )
-    client = ESOClient(
-        username=conf[CONF_USERNAME],
-        password=conf[CONF_PASSWORD],
-        code_provider=code_provider,
-    )
 
-    state = {"failures": 0}
-    notify_after = conf[CONF_NOTIFY_AFTER_FAILURES]
-    NOTIFY_ID = "eso_tfa"
 
-    async def async_fetch_objects(now: datetime) -> None:
-        any_failed = False
-        for obj in conf[CONF_OBJECTS]:
-            try:
-                _LOGGER.info(f"Fetching ESO dataset [{obj[CONF_NAME]}]")
-                await hass.async_add_executor_job(client.fetch_dataset, obj[CONF_ID], now)
-                dataset = client.get_dataset(obj[CONF_ID])
-                await async_insert_statistics(hass, obj, dataset)
-                if CONF_PRICE_ENTITY in obj and obj[CONF_PRICE_ENTITY]:
-                    await async_insert_cost_statistics(hass, obj, dataset)
-                _LOGGER.info(f"Import completed for {obj[CONF_NAME]}")
-            except Exception as e:
-                _LOGGER.error(f"Failed to import object {obj[CONF_NAME]}: {e}")
-                any_failed = True
+def _ensure_services(hass: HomeAssistant) -> None:
+    """Register all ESO services once; subsequent calls are no-ops."""
+    if hass.services.has_service(DOMAIN, "fetch_now"):
+        return
+
+    async def handle_fetch_now(call) -> None:
+        accounts = hass.data.get(DOMAIN, {}).values()
+        ran = False
+        for account in accounts:
+            if getattr(account, "code_provider", None) is None:
                 continue
-        if any_failed:
-            raise RuntimeError("One or more ESO objects failed to import")
-
-    def _notify(message: str, title: str) -> None:
-        persistent_notification.async_create(hass, message, title=title, notification_id=NOTIFY_ID)
-
-    async def _handle_failure(retry: bool) -> None:
-        state["failures"] += 1
-        if state["failures"] == notify_after:
-            _notify(
-                "ESO automatic login failed repeatedly. Complete it manually: call "
-                "eso.start_login, then eso.submit_tfa_code with the emailed code.",
-                "ESO login needs attention",
+            await account.async_login_and_fetch(dt_util.now())
+            ran = True
+        if not ran:
+            persistent_notification.async_create(
+                hass,
+                "eso.fetch_now needs an IMAP-configured account (auto mode).",
+                title="ESO fetch_now unavailable",
+                notification_id=NOTIFY_ID,
             )
-        if not retry:
-            _LOGGER.warning("ESO import failed, will retry later")
-            hass.loop.call_later(
-                RETRY_DELAY_SECONDS,
-                lambda: asyncio.create_task(async_auto_import(datetime.now(), retry=True)),
+
+    def _yaml_account_or_notify():
+        """Return the YAML account, or notify and return None. The start_login /
+        submit_tfa_code services only drive the YAML manual-mode account; a
+        UI-configured account refreshes its code through the reauth flow, so
+        give those users actionable feedback instead of a silent no-op."""
+        account = hass.data.get(DOMAIN, {}).get("yaml")
+        if account is None:
+            persistent_notification.async_create(
+                hass,
+                "eso.start_login and eso.submit_tfa_code only drive a "
+                "YAML-configured account. A UI-configured account gets a fresh "
+                "login code through its reauthentication flow "
+                "(Settings → Devices & Services → ESO → Reconfigure/Reauth), "
+                "not these services.",
+                title="ESO services unavailable",
+                notification_id=NOTIFY_ID,
             )
-        else:
-            _LOGGER.error("ESO import failed again, postponing to next day")
-
-    async def async_auto_import(now: datetime, retry: bool = False) -> None:
-        if hass.is_stopping:
-            _LOGGER.debug("HA is stopping, skipping ESO import")
-            return
-        if code_provider is None:
-            # Auto import requires IMAP; manual mode uses start_login/submit_tfa_code.
-            _LOGGER.debug("Skipping auto import: no imap config (manual mode)")
-            return
-        try:
-            _LOGGER.info("Logging in to ESO (auto)...")
-            await hass.async_add_executor_job(client.login)
-            await async_fetch_objects(now)
-        except Exception as e:
-            _LOGGER.error(f"ESO auto import error: {e}")
-            await _handle_failure(retry)
-            return
-        state["failures"] = 0
-
-    async def async_manual_reminder(now: datetime) -> None:
-        if hass.is_stopping:
-            return
-        _notify(
-            "Time to refresh ESO data. Call eso.start_login, then eso.submit_tfa_code "
-            "with the code emailed to you.",
-            "ESO data refresh due",
-        )
+        return account
 
     async def handle_start_login(call) -> None:
+        account = _yaml_account_or_notify()
+        if account is None:
+            return
         try:
-            needed = await hass.async_add_executor_job(client.start_login)
+            needed = await hass.async_add_executor_job(account.client.start_login)
         except Exception as e:
             _LOGGER.error(f"ESO start_login error: {e}")
-            _notify(f"ESO login failed to start: {e}", "ESO login error")
+            account.notify(f"ESO login failed to start: {e}", "ESO login error")
             return
         if needed:
             hass.bus.async_fire("eso_tfa_required", {})
-            _notify(
+            account.notify(
                 "ESO emailed you a login code. Submit it: call eso.submit_tfa_code "
                 "with data code: '<the 6-digit code>'.",
                 "ESO code required",
             )
         else:
-            await async_fetch_objects(dt_util.now())
+            await account.async_fetch_objects(dt_util.now())
             persistent_notification.async_dismiss(hass, NOTIFY_ID)
 
     async def handle_submit_tfa_code(call) -> None:
+        account = _yaml_account_or_notify()
+        if account is None:
+            return
         code = call.data["code"]
         try:
-            await hass.async_add_executor_job(client.submit_code, code)
+            await hass.async_add_executor_job(account.client.submit_code, code)
+        except TfaSessionExpired as e:
+            # The login window lapsed (or no challenge is pending): a fresh code
+            # is needed, not a retry of this one. Catch before TfaCodeNeeded,
+            # which it subclasses, so the guidance is actionable.
+            _LOGGER.error(f"ESO submit_tfa_code: session expired: {e}")
+            account.notify(
+                "ESO login window expired. Call eso.start_login again to get a "
+                "fresh code, then eso.submit_tfa_code with it.",
+                "ESO login expired",
+            )
+            return
         except TfaCodeNeeded as e:
             _LOGGER.error(f"ESO submit_tfa_code rejected: {e}")
-            _notify(f"ESO code rejected: {e}", "ESO code error")
+            account.notify(f"ESO code rejected: {e}", "ESO code error")
             return
         except Exception as e:
             _LOGGER.error(f"ESO submit_tfa_code error: {e}")
-            _notify(f"ESO login failed: {e}", "ESO login error")
+            account.notify(f"ESO login failed: {e}", "ESO login error")
             return
-        await async_fetch_objects(dt_util.now())
-        state["failures"] = 0
+        await account.async_fetch_objects(dt_util.now())
+        account.failures = 0
         persistent_notification.async_dismiss(hass, NOTIFY_ID)
-
-    async def handle_fetch_now(call) -> None:
-        if code_provider is None:
-            _notify(
-                "eso.fetch_now needs an imap: config block (auto mode). Without it, "
-                "use eso.start_login then eso.submit_tfa_code.",
-                "ESO fetch_now unavailable",
-            )
-            return
-        await async_auto_import(dt_util.now())
 
     hass.services.async_register(DOMAIN, "fetch_now", handle_fetch_now)
     hass.services.async_register(DOMAIN, "start_login", handle_start_login)
     hass.services.async_register(
-        DOMAIN,
-        "submit_tfa_code",
-        handle_submit_tfa_code,
+        DOMAIN, "submit_tfa_code", handle_submit_tfa_code,
         schema=vol.Schema({vol.Required("code"): cv.string}),
     )
 
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    if DOMAIN not in config:
+        return True
+    conf = config[DOMAIN]
+    hass.data.setdefault(DOMAIN, {})
+
+    code_provider = None
+    if CONF_IMAP in conf:
+        code_provider = ImapCodeProvider(**imap_provider_kwargs(conf[CONF_IMAP]))
+    client = ESOClient(
+        username=conf[CONF_USERNAME],
+        password=conf[CONF_PASSWORD],
+        code_provider=code_provider,
+    )
+    account = EsoAccount(
+        hass=hass,
+        client=client,
+        code_provider=code_provider,
+        objects=[build_object(o) for o in conf[CONF_OBJECTS]],
+        notify_after_failures=conf[CONF_NOTIFY_AFTER_FAILURES],
+        entry=None,
+    )
+    _warn_on_duplicate_object_ids(hass, account.objects)
+    hass.data[DOMAIN]["yaml"] = account
+
+    async def async_manual_reminder(now: datetime) -> None:
+        if hass.is_stopping:
+            return
+        account.notify(
+            "Time to refresh ESO data. Call eso.start_login, then eso.submit_tfa_code "
+            "with the code emailed to you.",
+            "ESO data refresh due",
+        )
+
+    _ensure_services(hass)
+
     if code_provider is not None:
-        async_track_time_change(hass, async_auto_import, hour=5, minute=11, second=0)
+        async_track_time_change(hass, account.async_login_and_fetch, hour=5, minute=11, second=0)
     else:
         async_track_time_change(hass, async_manual_reminder, hour=5, minute=11, second=0)
     return True
 
-async def async_insert_statistics(
-    hass: HomeAssistant, obj: dict, dataset: dict
-) -> None:
-    for data_type in [CONF_CONSUMED, CONF_RETURNED]:
-        if obj[data_type] is False:
-            continue
-        statistic_id = f"{DOMAIN}:energy_{data_type}_{obj[CONF_ID]}"
-        _LOGGER.debug(f"Statistic ID for {obj[CONF_NAME]} is {statistic_id}")
-        mapped_consumption_type = ENERGY_TYPE_MAP[data_type]
-        if not dataset or mapped_consumption_type not in dataset:
-            _LOGGER.error(f"Received empty generation data for {statistic_id}")
-            continue
-        generation_data = dataset[mapped_consumption_type]
-        _LOGGER.debug(f"Received ESO data for {statistic_id}: {generation_data}")
-        metadata = StatisticMetaData(
-            has_sum=True,
-            mean_type=StatisticMeanType.NONE,
-            name=f"{obj[CONF_NAME]} ({data_type})",
-            source=DOMAIN,
-            statistic_id=statistic_id,
-            unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-            unit_class="energy",
-        )
-        _LOGGER.debug(f"Preparing long-term statistics for {statistic_id}")
-        statistics = await _async_get_statistics(hass, metadata, generation_data)
-        _LOGGER.debug(f"Generated statistics for {statistic_id}: {statistics}")
-        async_add_external_statistics(hass, metadata, statistics)
 
-async def _async_get_statistics(hass: HomeAssistant, metadata: StatisticMetaData, generation_data: dict) -> list[StatisticData]:
-    if not generation_data:
-        return []
-    first_ts = next(iter(generation_data))
-    previous_sum = await get_previous_sum(hass, metadata, local_datetime(first_ts))
-    rows = build_energy_rows(generation_data, previous_sum)
-    return [StatisticData(start=r["start"], state=r["state"], sum=r["sum"]) for r in rows]
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    hass.data.setdefault(DOMAIN, {})
+    data = entry.data
+    code_provider = None
+    if data.get(CONF_IMAP):
+        code_provider = ImapCodeProvider(**imap_provider_kwargs(data[CONF_IMAP]))
+    client = ESOClient(
+        username=data[CONF_USERNAME],
+        password=data[CONF_PASSWORD],
+        code_provider=code_provider,
+    )
+    objects = [
+        build_object(sub.data)
+        for sub in entry.subentries.values()
+        if sub.subentry_type == "object"
+    ]
+    account = EsoAccount(
+        hass=hass,
+        client=client,
+        code_provider=code_provider,
+        objects=objects,
+        notify_after_failures=entry.options.get(
+            CONF_NOTIFY_AFTER_FAILURES, DEFAULT_NOTIFY_AFTER_FAILURES
+        ),
+        entry=entry,
+    )
+    _warn_on_duplicate_object_ids(hass, account.objects)
+    hass.data[DOMAIN][entry.entry_id] = account
 
-async def get_previous_sum(hass: HomeAssistant, metadata: StatisticMetaData, date: datetime) -> float:
-    statistic_id = metadata["statistic_id"]
-    start = date - timedelta(hours=1)
-    end = date
-    _LOGGER.debug(f"Looking history sum for {statistic_id} for {date} between {start} and {end}")
-    stat = await get_instance(hass).async_add_executor_job(
-        statistics_during_period, hass, start, end, {statistic_id}, "hour", None, {"sum"}
-    )
-    if statistic_id not in stat:
-        _LOGGER.debug("No history sum found")
-        return 0.0
-    sum_ = stat[statistic_id][0]["sum"]
-    _LOGGER.debug(f"History sum for {statistic_id} = {sum_}")
-    return sum_
+    _ensure_services(hass)
 
-async def async_insert_cost_statistics(
-    hass: HomeAssistant, obj: dict, consumption_dataset: dict
-) -> None:
-    if obj[CONF_CONSUMED] is False:
-        return
-    cons_dataset = consumption_dataset.get(ENERGY_TYPE_MAP[CONF_CONSUMED])
-    if not cons_dataset:
-        return
-    start_time = local_datetime(min(cons_dataset.keys()))
-    end_time = local_datetime(max(cons_dataset.keys()))
-    prices = await _async_generate_price_dict(hass, obj, start_time, end_time)
-    if not prices:
-        # No price statistics available — skip cost insertion entirely rather
-        # than writing all-zero cost stats (_async_generate_price_dict returns
-        # an empty dict, never None, on the no-data path).
-        return
-    cost_metadata = StatisticMetaData(
-        has_sum=True,
-        mean_type=StatisticMeanType.NONE,
-        name=f"{obj[CONF_NAME]} ({CONF_COST})",
-        source=DOMAIN,
-        statistic_id=f"{DOMAIN}:energy_{CONF_COST}_{obj[CONF_ID]}",
-        unit_of_measurement=obj[CONF_PRICE_CURRENCY],
-        unit_class=None,
+    account.unsub = async_track_time_change(
+        hass, account.async_login_and_fetch, hour=5, minute=11, second=0
     )
-    previous_sum = await get_previous_sum(hass, cost_metadata, start_time)
-    rows = build_cost_rows(cons_dataset, prices, previous_sum)
-    cost_stats = [StatisticData(start=r["start"], state=r["state"], sum=r["sum"]) for r in rows]
-    _LOGGER.debug(f"Generated cost statistics for {DOMAIN}:energy_{CONF_COST}_{obj[CONF_ID]}: {cost_stats}")
-    async_add_external_statistics(hass, cost_metadata, cost_stats)
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    entry.async_on_unload(entry.add_update_listener(async_update_listener))
+    return True
 
-async def _async_generate_price_dict(
-    hass: HomeAssistant, obj: dict, time_from: datetime, time_to: datetime
-) -> dict:
-    stats = await get_instance(hass).async_add_executor_job(
-        statistics_during_period, hass, time_from, time_to, {obj[CONF_PRICE_ENTITY]}, "hour", None, {"state"}
-    )
-    price_stats = stats.get(obj[CONF_PRICE_ENTITY])
-    if price_stats is None:
-        _LOGGER.warning(
-            "No price statistics for %s between %s and %s", obj[CONF_PRICE_ENTITY], time_from.isoformat(), time_to.isoformat()
-        )
-        return {}
-    _LOGGER.debug(
-        "Retrieving price statistics for %s between %s and %s: %s", obj[CONF_PRICE_ENTITY], time_from, time_to, price_stats
-    )
-    prices = {}
-    for rec in price_stats:
-        prices[rec["start"]] = rec["state"]
-    return prices
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    # Only tear down when the platforms actually unloaded. Popping the account
+    # and cancelling the scheduler on a failed unload would orphan entities that
+    # still reference the account and stop the scheduler for an entry HA still
+    # considers loaded.
+    if unloaded:
+        account = hass.data[DOMAIN].pop(entry.entry_id, None)
+        if account and account.unsub:
+            account.unsub()
+    return unloaded
+
+
+async def async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    await hass.config_entries.async_reload(entry.entry_id)

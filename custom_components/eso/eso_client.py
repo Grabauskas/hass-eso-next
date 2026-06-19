@@ -23,7 +23,16 @@ TFA_CODE_TTL = timedelta(minutes=15)
 
 
 class TfaCodeNeeded(Exception):
-    """Raised when an email TFA code is required but cannot be supplied automatically."""
+    """Raised when an email TFA code is required but cannot be supplied automatically,
+    or when a submitted code was rejected and a fresh code can still be entered."""
+
+
+class TfaSessionExpired(TfaCodeNeeded):
+    """Raised when there is no pending login or the code window has lapsed.
+
+    Distinct from a merely-wrong code: the caller must mint a fresh challenge
+    (re-POST credentials) before another code can be submitted. Subclasses
+    TfaCodeNeeded so existing ``except TfaCodeNeeded`` handlers still catch it."""
 
 
 class ESOFetchError(Exception):
@@ -48,8 +57,17 @@ class ESOClient:
         self.dataset = {}
         if not self._start_credentials():
             return  # no TFA challenge; already at consumption page
+        self.finish_login()
+
+    def finish_login(self) -> None:
+        """Complete an auto-mode login after start_login(): wait for the emailed
+        code via the configured provider, then submit it. Split out from login()
+        so the UI config flow can run this part as a background task (with a
+        progress indicator) after the fast credential POST."""
         if self.code_provider is None:
             raise TfaCodeNeeded("ESO requires an email code; configure imap or use the eso.start_login service")
+        if not self._pending:
+            raise TfaSessionExpired("No pending ESO login; start the login again")
         code = self.code_provider.wait_for_code(self._pending["requested_at"])
         self._submit_tfa(code)
 
@@ -58,13 +76,32 @@ class ESOClient:
         self.dataset = {}
         return self._start_credentials()
 
+    def is_authenticated(self) -> bool:
+        """True once the session has landed on the consumption page (login done)."""
+        return self.form_parser.get("form_id") == CONSUMPTION_FORM_ID
+
     def submit_code(self, code: str) -> None:
         if not self._pending:
-            raise TfaCodeNeeded("No pending ESO login; call start_login first")
+            raise TfaSessionExpired("No pending ESO login; start the login again")
         if datetime.now(timezone.utc) - self._pending["requested_at"] > TFA_CODE_TTL:
             self._pending = None
-            raise TfaCodeNeeded("ESO code window expired; start the login again")
-        self._submit_tfa(code)
+            raise TfaSessionExpired("ESO code window expired; start the login again")
+        prev = self._pending
+        self._submit_tfa(code)  # clears self._pending
+        if self.is_authenticated():
+            return
+        if self.form_parser.get("form_id") == TFA_FORM_ID:
+            # ESO re-rendered the TFA form: the code was wrong. Rebuild a pending
+            # challenge from the re-rendered form (picking up any new build id)
+            # while preserving the original requested_at, so the user can retry
+            # within the same TTL window instead of being trapped.
+            action = self.form_parser.get("action")
+            self._pending = {
+                "action_url": urljoin(prev["action_url"], action) if action else prev["action_url"],
+                "form_build_id": self.form_parser.get("form_build_id") or prev["form_build_id"],
+                "requested_at": prev["requested_at"],
+            }
+        raise TfaCodeNeeded("ESO rejected the code; check your email and try again")
 
     def _start_credentials(self) -> bool:
         """POST credentials. Returns True if a TFA challenge is present (pending stored)."""

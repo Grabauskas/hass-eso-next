@@ -120,6 +120,62 @@ def test_wait_for_code_returns_code_via_fake_imap(eso_module, fixtures_path, mon
     assert provider.wait_for_code(since, timeout=5, poll_interval=1) == "372449"
 
 
+def test_check_connection_ok_with_fake_imap(eso_module, monkeypatch):
+    mod = eso_module("imap_client")
+    monkeypatch.setattr(mod.imaplib, "IMAP4_SSL", lambda host, port: _FakeIMAP())
+    provider = mod.ImapCodeProvider("h", 993, "u", "pw")
+    # A reachable server with accepted credentials returns without raising.
+    assert provider.check_connection() is None
+
+
+def test_check_connection_unreachable_raises_connect_error(eso_module, monkeypatch):
+    import pytest
+
+    mod = eso_module("imap_client")
+
+    def _boom(host, port):
+        raise OSError(101, "Network unreachable")
+
+    monkeypatch.setattr(mod.imaplib, "IMAP4_SSL", _boom)
+    provider = mod.ImapCodeProvider("h", 993, "u", "pw")
+    with pytest.raises(mod.ImapConnectError):
+        provider.check_connection()
+
+
+def test_check_connection_bad_login_raises_auth_error(eso_module, monkeypatch):
+    import pytest
+
+    mod = eso_module("imap_client")
+
+    class _AuthFailIMAP(_FakeIMAP):
+        def login(self, username, password):
+            raise mod.imaplib.IMAP4.error("AUTHENTICATIONFAILED")
+
+    monkeypatch.setattr(mod.imaplib, "IMAP4_SSL", lambda host, port: _AuthFailIMAP())
+    provider = mod.ImapCodeProvider("h", 993, "u", "pw")
+    with pytest.raises(mod.ImapAuthError):
+        provider.check_connection()
+
+
+def test_wait_for_code_retries_connect_error_until_deadline(eso_module, monkeypatch):
+    """A network blip mid-wait must not abort the (unattended) login: connect
+    errors are retried until the deadline, then surface as TfaTimeout rather than
+    failing the whole login on the first hiccup."""
+    import pytest
+
+    mod = eso_module("imap_client")
+
+    def _boom(host, port):
+        raise OSError(101, "Network unreachable")
+
+    monkeypatch.setattr(mod.imaplib, "IMAP4_SSL", _boom)
+    monkeypatch.setattr(mod.time, "sleep", lambda s: None)
+    provider = mod.ImapCodeProvider("h", 993, "u", "pw")
+    since = datetime(2000, 1, 1, tzinfo=timezone.utc)
+    with pytest.raises(mod.TfaTimeout):
+        provider.wait_for_code(since, timeout=0, poll_interval=0)
+
+
 def test_wait_for_code_times_out_when_no_message(eso_module, monkeypatch):
     from datetime import datetime, timezone
 

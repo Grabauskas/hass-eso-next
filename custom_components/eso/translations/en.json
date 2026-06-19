@@ -1,0 +1,151 @@
+{
+  "entity": {
+    "button": {
+      "fetch": { "name": "Fetch now" }
+    },
+    "sensor": {
+      "last_fetch": { "name": "Last fetch" },
+      "status": {
+        "name": "Last fetch status",
+        "state": {
+          "success": "Success",
+          "failed": "Failed",
+          "unknown": "Unknown"
+        }
+      }
+    }
+  },
+  "config": {
+    "step": {
+      "user": {
+        "title": "ESO account",
+        "description": "Enter your mano.eso.lt credentials. Leave the IMAP host blank to enter the login code manually in the UI.",
+        "data": {
+          "username": "ESO username",
+          "password": "ESO password",
+          "notify_after_failures": "Notify after N failures",
+          "host": "IMAP host (optional)",
+          "port": "IMAP port",
+          "imap_username": "IMAP username (defaults to ESO username)",
+          "imap_password": "IMAP password (defaults to ESO password)",
+          "folder": "IMAP folder",
+          "sender": "Code email sender",
+          "subject": "Code email subject"
+        }
+      },
+      "tfa": {
+        "title": "Enter ESO code",
+        "description": "Enter the one-time code ESO emailed you.",
+        "data": { "code": "Code" }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate ESO",
+        "description": "Confirm your ESO password (edit it if it changed). ESO will email a fresh login code.",
+        "data": { "password": "ESO password" }
+      },
+      "reauth_code": {
+        "title": "Re-enter ESO code",
+        "description": "ESO emailed a new login code. Enter it to refresh access.",
+        "data": { "code": "Code" }
+      },
+      "object": {
+        "title": "Add ESO object",
+        "description": "Add a metering point to import. You can add more later from the integration's menu.",
+        "data": {
+          "name": "Name",
+          "id": "Object ID",
+          "consumed": "Import consumed energy",
+          "returned": "Import returned energy",
+          "price_entity": "Price entity (optional)",
+          "price_currency": "Price currency"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure ESO",
+        "description": "Edit your ESO password and IMAP settings. Leave the IMAP host blank to switch to manual code entry.",
+        "data": {
+          "password": "ESO password",
+          "host": "IMAP host (optional)",
+          "port": "IMAP port",
+          "imap_username": "IMAP username (defaults to ESO username)",
+          "imap_password": "IMAP password (defaults to ESO password)",
+          "folder": "IMAP folder",
+          "sender": "Code email sender",
+          "subject": "Code email subject"
+        },
+        "data_description": {
+          "host": "Clear this field to turn off IMAP and switch to manual code entry. Clearing the username/password alone does not disable IMAP — they just fall back to your ESO credentials."
+        }
+      }
+    },
+    "progress": {
+      "wait_code": "Waiting for the login code ESO emails you. This can take a minute…"
+    },
+    "error": {
+      "invalid_auth": "Login failed. Check your username and password.",
+      "cannot_connect": "Could not reach ESO. Try again later.",
+      "invalid_code": "That code was not accepted. Check your email and try again.",
+      "code_expired": "The code window expired. We emailed a new code — enter it below.",
+      "imap_unreachable": "Could not reach your IMAP mail server. Check the host/port and that Home Assistant has network access to it.",
+      "imap_auth": "Your IMAP mail server rejected the username/password.",
+      "code_timeout": "No login code arrived in your mailbox in time. Check the sender/subject/folder and try again.",
+      "missing_object_name": "Name is required.",
+      "missing_object_id": "Object ID is required.",
+      "unknown": "Unexpected error. Check the logs."
+    },
+    "abort": {
+      "already_configured": "This ESO account is already set up.",
+      "reauth_failed": "Re-authentication failed. Check the logs and try again.",
+      "reauth_successful": "Re-authentication was successful and data was refreshed.",
+      "reconfigure_successful": "ESO settings were updated."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "ESO options",
+        "data": { "notify_after_failures": "Notify after N failures" }
+      }
+    }
+  },
+  "config_subentries": {
+    "object": {
+      "title": "ESO object",
+      "entry_type": "ESO object",
+      "initiate_flow": {
+        "user": "Add ESO object",
+        "reconfigure": "Edit ESO object"
+      },
+      "step": {
+        "user": {
+          "title": "Add ESO object",
+          "data": {
+            "name": "Name",
+            "id": "Object ID",
+            "consumed": "Import consumed energy",
+            "returned": "Import returned energy",
+            "price_entity": "Price entity (optional)",
+            "price_currency": "Price currency"
+          }
+        },
+        "reconfigure": {
+          "title": "Edit ESO object",
+          "data": {
+            "name": "Name",
+            "id": "Object ID",
+            "consumed": "Import consumed energy",
+            "returned": "Import returned energy",
+            "price_entity": "Price entity (optional)",
+            "price_currency": "Price currency"
+          }
+        }
+      },
+      "error": {
+        "missing_object_name": "Name is required.",
+        "missing_object_id": "Object ID is required.",
+        "duplicate_object": "An object with this ID already exists on this account.",
+        "duplicate_object_other_account": "This object ID is already configured in another ESO account. Each object ID must belong to only one account to avoid corrupting the Energy dashboard totals."
+      }
+    }
+  }
+}
